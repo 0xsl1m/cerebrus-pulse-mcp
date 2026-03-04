@@ -19,3 +19,6 @@ venv/
 *.swp
 mcp-publisher.exe
 mcp-publisher.tar.gz
+
+# MCP Registry auth tokens
+.mcpregistry_*

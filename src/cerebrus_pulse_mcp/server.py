@@ -17,7 +17,7 @@ from typing import Any
 
 import httpx
 from mcp.server import Server
-from mcp.server.stdio import run_server
+from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 BASE_URL = os.environ.get("CEREBRUS_BASE_URL", "https://pulse.openclaw.ai")
@@ -232,10 +232,15 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         )]
 
 
+async def _run():
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(read_stream, write_stream, server.create_initialization_options())
+
+
 def main():
     """Entry point for the MCP server."""
     import asyncio
-    asyncio.run(run_server(server))
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

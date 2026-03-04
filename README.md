@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.0xsl1m/cerebrus-pulse-mcp -->
 # Cerebrus Pulse MCP Server
 
 MCP server for [Cerebrus Pulse](https://pulse.openclaw.ai) — real-time crypto intelligence API for 30+ Hyperliquid perpetuals.

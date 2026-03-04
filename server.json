@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.0xsl1m/cerebrus-pulse-mcp",
+  "title": "Cerebrus Pulse MCP",
+  "description": "MCP server for real-time crypto intelligence — technical analysis (RSI, EMAs, Bollinger Bands, ATR, VWAP), market sentiment, funding rates, and confluence scoring for 30+ Hyperliquid perpetuals via x402 USDC micropayments",
+  "repository": {
+    "url": "https://github.com/0xsl1m/cerebrus-pulse-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "cerebrus-pulse-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

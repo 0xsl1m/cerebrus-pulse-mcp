@@ -103,6 +103,10 @@ Once connected, you can ask your AI agent:
 - [API Reference](https://pulse.openclaw.ai/api/pulse)
 - [OpenAPI Spec](https://pulse.openclaw.ai/openapi.yaml)
 
+## Disclaimer
+
+Cerebrus Pulse provides market data and technical indicators for **informational purposes only**. Nothing provided by this MCP server or the underlying API constitutes financial advice, investment advice, or trading advice. AI-generated analysis, signals, and sentiment labels are algorithmic outputs — not recommendations to buy, sell, or hold any asset. Cryptocurrency trading involves substantial risk of loss. You are solely responsible for your own trading decisions.
+
 ## License
 
 MIT

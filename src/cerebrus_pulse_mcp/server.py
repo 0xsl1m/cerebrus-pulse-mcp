@@ -9,6 +9,10 @@ For paid endpoints, the server makes standard HTTP requests. If x402 payment
 is configured (via CEREBRUS_WALLET_KEY env var), it handles the 402 flow
 automatically. Otherwise, it returns the 402 response details so the caller
 can handle payment.
+
+Disclaimer: Data provided is for informational purposes only and does not
+constitute financial advice. Cryptocurrency trading involves substantial
+risk of loss.
 """
 
 import json

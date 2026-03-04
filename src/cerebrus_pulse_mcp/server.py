@@ -175,6 +175,75 @@ async def list_tools() -> list[Tool]:
                 "required": ["coin"],
             },
         ),
+        Tool(
+            name="cerebrus_screener",
+            description=(
+                "Scan all 30+ coins for top trading signals. Returns RSI zone, trend, "
+                "volatility regime, funding bias, confluence score, and OI trend for each coin. "
+                "Much cheaper than calling pulse individually. Cost: $0.04 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "top_n": {
+                        "type": "integer",
+                        "description": "Number of top coins to return (1-30). Default: 30",
+                        "default": 30,
+                        "minimum": 1,
+                        "maximum": 30,
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="cerebrus_oi",
+            description=(
+                "Get open interest analysis for a Hyperliquid perpetual. "
+                "Returns OI delta (1h/4h/24h), percentile rank, trend direction, "
+                "and price-OI divergence signals. Cost: $0.01 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coin": {
+                        "type": "string",
+                        "description": "Coin ticker (e.g., BTC, ETH, SOL). Case-insensitive.",
+                    },
+                },
+                "required": ["coin"],
+            },
+        ),
+        Tool(
+            name="cerebrus_spread",
+            description=(
+                "Get spread and liquidity analysis for a Hyperliquid perpetual. "
+                "Returns bid-ask spread, estimated slippage at $10k/$50k/$100k/$500k, "
+                "and liquidity score (1-10). Cost: $0.008 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coin": {
+                        "type": "string",
+                        "description": "Coin ticker (e.g., BTC, ETH, SOL). Case-insensitive.",
+                    },
+                },
+                "required": ["coin"],
+            },
+        ),
+        Tool(
+            name="cerebrus_correlation",
+            description=(
+                "Get BTC-altcoin correlation matrix for top 15 Hyperliquid perpetuals. "
+                "Returns 30-day rolling correlations, correlation regime "
+                "(CORRELATED/DECORRELATED/MIXED), and sector averages. "
+                "Cost: $0.03 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -206,6 +275,21 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             coin = arguments["coin"]
             timeframes = arguments.get("timeframes", "1h,4h")
             result = _api_get(f"/bundle/{coin}", params={"timeframes": timeframes})
+
+        elif name == "cerebrus_screener":
+            top_n = arguments.get("top_n", 30)
+            result = _api_get("/screener", params={"top_n": top_n})
+
+        elif name == "cerebrus_oi":
+            coin = arguments["coin"]
+            result = _api_get(f"/oi/{coin}")
+
+        elif name == "cerebrus_spread":
+            coin = arguments["coin"]
+            result = _api_get(f"/spread/{coin}")
+
+        elif name == "cerebrus_correlation":
+            result = _api_get("/correlation")
 
         else:
             result = {"error": f"Unknown tool: {name}"}

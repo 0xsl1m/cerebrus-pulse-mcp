@@ -62,6 +62,10 @@ Add to your MCP settings:
 | `cerebrus_sentiment` | $0.01 | Aggregated crypto market sentiment |
 | `cerebrus_funding` | $0.01 | Funding rate analysis with historical data |
 | `cerebrus_bundle` | $0.04 | Complete bundle: pulse + sentiment + funding (20% discount) |
+| `cerebrus_screener` | $0.04 | Scan 30+ coins for signals, trends, vol regime, confluence |
+| `cerebrus_oi` | $0.01 | Open interest analysis: delta, percentile, trend, divergence |
+| `cerebrus_spread` | $0.008 | Spread analysis: slippage estimates, liquidity scoring |
+| `cerebrus_correlation` | $0.03 | BTC-alt correlation matrix with regime classification |
 
 ## How Payment Works
 

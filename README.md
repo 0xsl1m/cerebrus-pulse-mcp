@@ -93,7 +93,7 @@ Once connected, you can ask your AI agent:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CEREBRUS_BASE_URL` | `https://cerebruspulse.xyz` | API base URL |
+| `CEREBRUS_BASE_URL` | `https://api.cerebruspulse.xyz` | API base URL |
 | `CEREBRUS_WALLET_KEY` | — | Base wallet private key for x402 auto-payment |
 
 ## Links

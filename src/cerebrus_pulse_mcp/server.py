@@ -24,7 +24,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-BASE_URL = os.environ.get("CEREBRUS_BASE_URL", "https://cerebruspulse.xyz")
+BASE_URL = os.environ.get("CEREBRUS_BASE_URL", "https://api.cerebruspulse.xyz")
 REQUEST_TIMEOUT = 30.0
 
 server = Server("cerebrus-pulse")

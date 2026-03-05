@@ -24,7 +24,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-BASE_URL = os.environ.get("CEREBRUS_BASE_URL", "https://pulse.openclaw.ai")
+BASE_URL = os.environ.get("CEREBRUS_BASE_URL", "https://cerebruspulse.xyz")
 REQUEST_TIMEOUT = 30.0
 
 server = Server("cerebrus-pulse")
@@ -54,7 +54,7 @@ def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
                 "message": "This endpoint requires x402 USDC payment on Base.",
                 "url": f"{BASE_URL}{path}",
                 "payment_details": resp.headers.get("X-Payment", "See x402 SDK docs"),
-                "help": "Install the x402 SDK and set CEREBRUS_WALLET_KEY to enable auto-payment. See https://pulse.openclaw.ai/guides/x402-payments",
+                "help": "Install the x402 SDK and set CEREBRUS_WALLET_KEY to enable auto-payment. See https://cerebruspulse.xyz/guides/x402-payments",
             }
 
         if resp.status_code == 429:
@@ -315,7 +315,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             text=_format_response({
                 "error": "Connection failed",
                 "detail": str(e),
-                "help": "Check that https://pulse.openclaw.ai is reachable.",
+                "help": "Check that https://cerebruspulse.xyz is reachable.",
             }),
         )]
 

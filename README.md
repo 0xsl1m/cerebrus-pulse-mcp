@@ -1,7 +1,7 @@
 <!-- mcp-name: io.github.0xsl1m/cerebrus-pulse-mcp -->
 # Cerebrus Pulse MCP Server
 
-MCP server for [Cerebrus Pulse](https://pulse.openclaw.ai) — real-time crypto intelligence API for 30+ Hyperliquid perpetuals.
+MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto intelligence API for 30+ Hyperliquid perpetuals.
 
 Use this server to give any MCP-compatible AI agent (Claude Desktop, Cursor, Windsurf, etc.) access to:
 
@@ -93,15 +93,15 @@ Once connected, you can ask your AI agent:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CEREBRUS_BASE_URL` | `https://pulse.openclaw.ai` | API base URL |
+| `CEREBRUS_BASE_URL` | `https://cerebruspulse.xyz` | API base URL |
 | `CEREBRUS_WALLET_KEY` | — | Base wallet private key for x402 auto-payment |
 
 ## Links
 
-- [Cerebrus Pulse Documentation](https://pulse.openclaw.ai/overview)
-- [x402 Payment Guide](https://pulse.openclaw.ai/guides/x402-payments)
-- [API Reference](https://pulse.openclaw.ai/api/pulse)
-- [OpenAPI Spec](https://pulse.openclaw.ai/openapi.yaml)
+- [Cerebrus Pulse Documentation](https://cerebruspulse.xyz/overview)
+- [x402 Payment Guide](https://cerebruspulse.xyz/guides/x402-payments)
+- [API Reference](https://cerebruspulse.xyz/api/pulse)
+- [OpenAPI Spec](https://cerebruspulse.xyz/openapi.yaml)
 
 ## Disclaimer
 

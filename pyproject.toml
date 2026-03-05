@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "OpenClaw", email = "contact@openclaw.ai" },
+    { name = "0xsl1m", email = "sl1m@ghost.love" },
 ]
 keywords = [
     "mcp", "crypto", "technical-analysis", "hyperliquid", "x402",
@@ -30,8 +30,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://pulse.openclaw.ai"
-Documentation = "https://pulse.openclaw.ai/overview"
+Homepage = "https://cerebruspulse.xyz"
+Documentation = "https://cerebruspulse.xyz/overview"
 Repository = "https://github.com/0xsl1m/cerebrus-pulse-mcp"
 Issues = "https://github.com/0xsl1m/cerebrus-pulse-mcp/issues"
 

@@ -315,7 +315,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             text=_format_response({
                 "error": "Connection failed",
                 "detail": str(e),
-                "help": "Check that https://cerebruspulse.xyz is reachable.",
+                "help": "Check that https://api.cerebruspulse.xyz is reachable.",
             }),
         )]
 

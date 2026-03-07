@@ -1,14 +1,16 @@
 <!-- mcp-name: io.github.0xsl1m/cerebrus-pulse-mcp -->
 # Cerebrus Pulse MCP Server
 
-MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto intelligence API for 30+ Hyperliquid perpetuals.
+MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto intelligence API for 50+ Hyperliquid perpetuals. Pays with USDC on Base or Solana via x402.
 
 Use this server to give any MCP-compatible AI agent (Claude Desktop, Cursor, Windsurf, etc.) access to:
 
 - **Technical analysis** — RSI, EMAs, ATR, Bollinger Bands, VWAP, Z-score, trend, regime, confluence scoring
 - **Market sentiment** — Fear/greed, momentum, funding bias
 - **Funding rates** — Current and historical with annualized projections
-- **Analysis bundles** — All data combined at 20% discount
+- **Market Stress Index** — Cross-chain arbitrage-derived stress signal
+- **CEX-DEX divergence** — Centralized vs decentralized exchange price comparison
+- **Analysis bundles** — All data combined at 17% discount
 
 ## Quick Start
 

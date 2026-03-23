@@ -324,6 +324,28 @@ async def list_tools() -> list[Tool]:
                 "properties": {},
             },
         ),
+        Tool(
+            name="cerebrus_liquidations",
+            description=(
+                "Get estimated liquidation heatmap for a Hyperliquid perpetual. "
+                "Maps where liquidation clusters sit across 5 leverage tiers (3x-50x) "
+                "for both longs and shorts. Returns cascade risk level "
+                "(LOW/MODERATE/HIGH/EXTREME), estimated USD at each zone, proximity "
+                "to current price, long/short ratio from funding skew, and nearest "
+                "cluster alert. No other MCP provider offers this signal. "
+                "Cost: $0.03 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coin": {
+                        "type": "string",
+                        "description": "Coin ticker (e.g., BTC, ETH, SOL). Case-insensitive.",
+                    },
+                },
+                "required": ["coin"],
+            },
+        ),
     ]
 
 
@@ -385,6 +407,10 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
         elif name == "cerebrus_depeg":
             result = _api_get("/depeg")
+
+        elif name == "cerebrus_liquidations":
+            coin = arguments["coin"]
+            result = _api_get(f"/liquidations/{coin}")
 
         else:
             result = {"error": f"Unknown tool: {name}"}

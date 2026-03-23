@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cerebrus-pulse-mcp"
-version = "0.3.0"
+version = "0.3.1"
 description = "MCP server for Cerebrus Pulse — real-time crypto intelligence API for Hyperliquid perpetuals"
 readme = "README.md"
 license = "MIT"

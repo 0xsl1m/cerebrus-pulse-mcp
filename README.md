@@ -6,11 +6,14 @@ MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto 
 Use this server to give any MCP-compatible AI agent (Claude Desktop, Cursor, Windsurf, etc.) access to:
 
 - **Technical analysis** — RSI, EMAs, ATR, Bollinger Bands, VWAP, Z-score, trend, regime, confluence scoring
+- **Liquidation heatmap** — Estimated liquidation zones by leverage tier with cascade risk
+- **Market Stress Index** — Cross-chain arbitrage-derived stress signal across 8 chains
+- **CEX-DEX divergence** — Centralized vs decentralized exchange price comparison
+- **Chainlink basis** — HL perpetual oracle vs Chainlink spot with contrarian signals
+- **USDC depeg monitor** — Collateral health via Chainlink oracle + sequencer status
 - **Market sentiment** — Fear/greed, momentum, funding bias
 - **Funding rates** — Current and historical with annualized projections
-- **Market Stress Index** — Cross-chain arbitrage-derived stress signal
-- **CEX-DEX divergence** — Centralized vs decentralized exchange price comparison
-- **Analysis bundles** — All data combined at 17% discount
+- **Analysis bundles** — All data combined at discount
 
 ## Quick Start
 
@@ -54,20 +57,25 @@ Add to your MCP settings:
 }
 ```
 
-## Available Tools
+## Available Tools (15)
 
 | Tool | Cost | Description |
 |------|------|-------------|
-| `cerebrus_list_coins` | Free | List available coins (30+ Hyperliquid perpetuals) |
+| `cerebrus_list_coins` | Free | List available coins (50+ Hyperliquid perpetuals) |
 | `cerebrus_health` | Free | Check gateway health status |
-| `cerebrus_pulse` | $0.02 | Multi-timeframe technical analysis (RSI, EMAs, Bollinger, trend, regime) |
+| `cerebrus_pulse` | $0.025 | Multi-timeframe technical analysis (RSI, EMAs, Bollinger, trend, regime) |
+| `cerebrus_screener` | $0.06 | Scan 50+ coins for signals, trends, vol regime, confluence |
+| `cerebrus_liquidations` | $0.03 | Liquidation heatmap by leverage tier (3x-50x) with cascade risk |
 | `cerebrus_sentiment` | $0.01 | Aggregated crypto market sentiment |
 | `cerebrus_funding` | $0.01 | Funding rate analysis with historical data |
-| `cerebrus_bundle` | $0.04 | Complete bundle: pulse + sentiment + funding (20% discount) |
-| `cerebrus_screener` | $0.04 | Scan 30+ coins for signals, trends, vol regime, confluence |
 | `cerebrus_oi` | $0.01 | Open interest analysis: delta, percentile, trend, divergence |
 | `cerebrus_spread` | $0.008 | Spread analysis: slippage estimates, liquidity scoring |
 | `cerebrus_correlation` | $0.03 | BTC-alt correlation matrix with regime classification |
+| `cerebrus_stress` | $0.015 | Cross-chain market stress index (8 chains, arb-derived) |
+| `cerebrus_cex_dex` | $0.02 | CEX-DEX price divergence (Coinbase vs Chainlink/Uniswap) |
+| `cerebrus_basis` | $0.02 | Chainlink basis: HL perp oracle vs Chainlink spot price |
+| `cerebrus_depeg` | $0.01 | USDC collateral health via Chainlink oracle |
+| `cerebrus_bundle` | $0.05 | Complete bundle: pulse + sentiment + funding (9% discount) |
 
 ## How Payment Works
 
@@ -86,10 +94,12 @@ Cerebrus Pulse uses [x402](https://www.x402.org/) — USDC micropayments on Base
 Once connected, you can ask your AI agent:
 
 - "What's the technical analysis for BTC on the 1h timeframe?"
-- "Show me ETH funding rates for the last 48 hours"
-- "What's the current market sentiment?"
+- "Where are the liquidation clusters for ETH?"
+- "What's the current market stress level?"
+- "Show me CEX-DEX divergence for BTC"
+- "Is USDC holding its peg right now?"
 - "Get a complete analysis bundle for SOL"
-- "List all available coins"
+- "Scan all coins for the strongest signals"
 
 ## Environment Variables
 
@@ -103,7 +113,8 @@ Once connected, you can ask your AI agent:
 - [Cerebrus Pulse Documentation](https://cerebruspulse.xyz/overview)
 - [x402 Payment Guide](https://cerebruspulse.xyz/guides/x402-payments)
 - [API Reference](https://cerebruspulse.xyz/api/pulse)
-- [OpenAPI Spec](https://cerebruspulse.xyz/openapi.yaml)
+- [Python SDK](https://github.com/0xsl1m/cerebrus-pulse-python)
+- [LangChain Tools](https://github.com/0xsl1m/langchain-cerebrus-pulse)
 
 ## Disclaimer
 

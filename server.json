@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.0xsl1m/cerebrus-pulse-mcp",
   "title": "Cerebrus Pulse MCP",
-  "description": "Real-time crypto intelligence: technical analysis, sentiment, and funding rates",
+  "description": "Real-time crypto intelligence: 15 tools for technical analysis, liquidation heatmaps, market stress, CEX-DEX divergence, funding rates, and more. 50+ Hyperliquid perpetuals via x402 micropayments.",
   "repository": {
     "url": "https://github.com/0xsl1m/cerebrus-pulse-mcp",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.3.1",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cerebrus-pulse-mcp",
-      "version": "0.1.0",
+      "version": "0.3.1",
       "transport": {
         "type": "stdio"
       }

@@ -99,9 +99,10 @@ async def list_tools() -> list[Tool]:
             name="cerebrus_pulse",
             description=(
                 "Get multi-timeframe technical analysis for a Hyperliquid perpetual. "
+                "Supports 6 timeframes: 5m, 15m, 1h, 4h, 1d, 1w (daily/weekly aggregated from 1h). "
                 "Returns RSI, EMAs (20/50/200), ATR, Bollinger Bands, VWAP, Z-score, "
-                "trend direction, confluence scoring, derivatives data (funding, OI, spread), "
-                "and market regime. Cost: $0.02 USDC via x402."
+                "trend direction, cross-timeframe confluence with alignment scoring, "
+                "derivatives data (funding, OI, spread), and market regime. Cost: $0.02 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -112,7 +113,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "timeframes": {
                         "type": "string",
-                        "description": "Comma-separated timeframes: 15m, 1h, 4h. Default: 1h,4h",
+                        "description": "Comma-separated timeframes: 5m, 15m, 1h, 4h, 1d, 1w. Default: 1h,4h",
                         "default": "1h,4h",
                     },
                 },
@@ -159,9 +160,9 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="cerebrus_bundle",
             description=(
-                "Get complete analysis bundle: technical analysis + sentiment + funding "
-                "combined in one call. 20% discount vs individual endpoints. "
-                "Cost: $0.04 USDC via x402."
+                "Get complete analysis bundle: multi-timeframe technical analysis "
+                "(5m/15m/1h/4h/1d/1w) + sentiment + funding combined in one call. "
+                "20% discount vs individual endpoints. Cost: $0.04 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -172,7 +173,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "timeframes": {
                         "type": "string",
-                        "description": "Comma-separated timeframes: 15m, 1h, 4h. Default: 1h,4h",
+                        "description": "Comma-separated timeframes: 5m, 15m, 1h, 4h, 1d, 1w. Default: 1h,4h",
                         "default": "1h,4h",
                     },
                 },
@@ -183,7 +184,8 @@ async def list_tools() -> list[Tool]:
             name="cerebrus_screener",
             description=(
                 "Scan all 30+ coins for top trading signals. Returns RSI zone, trend, "
-                "volatility regime, funding bias, confluence score, and OI trend for each coin. "
+                "volatility regime, funding bias, multi-TF confluence score with alignment, "
+                "and OI trend for each coin. "
                 "Much cheaper than calling pulse individually. Cost: $0.04 USDC via x402."
             ),
             inputSchema={
@@ -191,10 +193,10 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "top_n": {
                         "type": "integer",
-                        "description": "Number of top coins to return (1-30). Default: 30",
+                        "description": "Number of top coins to return (1-100). Default: 30",
                         "default": 30,
                         "minimum": 1,
-                        "maximum": 30,
+                        "maximum": 100,
                     },
                 },
             },
@@ -248,6 +250,80 @@ async def list_tools() -> list[Tool]:
                 "properties": {},
             },
         ),
+        Tool(
+            name="cerebrus_stress",
+            description=(
+                "Get market stress index derived from cross-chain arbitrage detection. "
+                "Scans 8 chains (Arbitrum, Base, Optimism, Polygon, etc.) for price dislocations. "
+                "Returns stress level (LOW/MODERATE/HIGH/EXTREME), score (0-1), "
+                "spread statistics, chain routes, and recent scan summaries. "
+                "Unique signal — not available from any other provider. Cost: $0.015 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of recent scans to analyze (1-50). Default: 10",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50,
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="cerebrus_cex_dex",
+            description=(
+                "Get CEX-DEX price divergence for a token. Compares Coinbase (CEX) vs "
+                "Chainlink/Uniswap (DEX) prices. Returns spread in bps, direction "
+                "(cex_premium or dex_premium), and interpretation. "
+                "Refreshes every 5 minutes. Cost: $0.02 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coin": {
+                        "type": "string",
+                        "description": "Coin ticker (e.g., ETH, BTC, LINK). Case-insensitive.",
+                    },
+                },
+                "required": ["coin"],
+            },
+        ),
+        Tool(
+            name="cerebrus_basis",
+            description=(
+                "Get Chainlink basis analysis — compares Hyperliquid perpetual oracle price "
+                "vs Chainlink aggregated spot price on Arbitrum. Returns basis in bps, "
+                "direction (hl_premium/hl_discount/aligned), and contrarian signal. "
+                "Positive = longs paying shorts, negative = deleveraging. Cost: $0.02 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coin": {
+                        "type": "string",
+                        "description": "Coin ticker (e.g., BTC, ETH, SOL). Case-insensitive.",
+                    },
+                },
+                "required": ["coin"],
+            },
+        ),
+        Tool(
+            name="cerebrus_depeg",
+            description=(
+                "Get USDC collateral health monitor via Chainlink oracle. "
+                "Checks USDC/USD deviation from $1.00 peg, reports peg status "
+                "(HEALTHY/ELEVATED/WARNING/CRITICAL), risk level, and Arbitrum "
+                "sequencer status. Essential before sizing USDC-margined positions. "
+                "Cost: $0.01 USDC via x402."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -294,6 +370,21 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
         elif name == "cerebrus_correlation":
             result = _api_get("/correlation")
+
+        elif name == "cerebrus_stress":
+            limit = arguments.get("limit", 10)
+            result = _api_get("/arb", params={"limit": limit})
+
+        elif name == "cerebrus_cex_dex":
+            coin = arguments["coin"]
+            result = _api_get(f"/cex-dex/{coin}")
+
+        elif name == "cerebrus_basis":
+            coin = arguments["coin"]
+            result = _api_get(f"/basis/{coin}")
+
+        elif name == "cerebrus_depeg":
+            result = _api_get("/depeg")
 
         else:
             result = {"error": f"Unknown tool: {name}"}

@@ -1,4 +1,6 @@
 <!-- mcp-name: io.github.0xsl1m/cerebrus-pulse-mcp -->
+
+[![PyPI](https://img.shields.io/pypi/v/cerebrus-pulse-mcp)](https://pypi.org/project/cerebrus-pulse-mcp/) [![Downloads](https://img.shields.io/pypi/dm/cerebrus-pulse-mcp)](https://pypi.org/project/cerebrus-pulse-mcp/) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 # Cerebrus Pulse MCP Server
 
 MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto intelligence API for 50+ Hyperliquid perpetuals. Pays with USDC on Base or Solana via x402.

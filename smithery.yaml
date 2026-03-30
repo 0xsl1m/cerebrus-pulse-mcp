@@ -1,8 +1,18 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
 startCommand:
   type: stdio
   configSchema:
     type: object
-    properties: {}
+    required: []
+    properties:
+      walletKey:
+        type: string
+        description: "Base wallet private key for x402 auto-payment (optional — free endpoints work without it)"
   commandFunction:
     |-
-    (config) => ({ command: 'uvx', args: ['cerebrus-pulse-mcp'] })
+    (config) => {
+      const env = {};
+      if (config.walletKey) env.CEREBRUS_WALLET_KEY = config.walletKey;
+      return { command: 'uvx', args: ['cerebrus-pulse-mcp'], env };
+    }

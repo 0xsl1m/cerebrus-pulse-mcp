@@ -2,6 +2,17 @@
 
 All notable changes to Cerebrus Pulse MCP Server.
 
+## [0.4.0] - 2026-04-15
+
+### Added
+- `--json` CLI flag for direct tool access without an MCP client (closes #7)
+- Positional and `key=value` argument support for CLI mode
+- `--json` with no tool name lists all available tools with parameter schemas
+- Full README with tool reference, install guide, CLI examples, and configuration docs
+
+### Changed
+- Version bump to 0.4.0
+
 ## [0.3.2] - 2026-03-29
 
 ### Added

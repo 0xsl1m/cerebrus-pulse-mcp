@@ -15,14 +15,21 @@ constitute financial advice. Cryptocurrency trading involves substantial
 risk of loss.
 """
 
+import argparse
 import json
 import os
+import re
+import sys
 from typing import Any
 
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
+
+from cerebrus_pulse_mcp import __version__ as _VERSION
+
+_COIN_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 BASE_URL = os.environ.get("CEREBRUS_BASE_URL", "https://api.cerebruspulse.xyz")
 REQUEST_TIMEOUT = 30.0
@@ -34,12 +41,20 @@ def _make_client() -> httpx.Client:
     return httpx.Client(
         base_url=BASE_URL,
         timeout=REQUEST_TIMEOUT,
-        headers={"User-Agent": "cerebrus-pulse-mcp/0.1.0"},
+        headers={"User-Agent": f"cerebrus-pulse-mcp/{_VERSION}"},
     )
 
 
 def _format_response(data: dict | list) -> str:
     return json.dumps(data, indent=2)
+
+
+def _validate_coin(coin: str) -> str:
+    """Validate and normalize a coin ticker. Raises ValueError on bad input."""
+    coin = coin.strip().upper()
+    if not _COIN_RE.match(coin):
+        raise ValueError(f"Invalid coin ticker: {coin!r}")
+    return coin
 
 
 def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
@@ -361,7 +376,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = _api_get("/health")
 
         elif name == "cerebrus_pulse":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             timeframes = arguments.get("timeframes", "1h,4h")
             result = _api_get(f"/pulse/{coin}", params={"timeframes": timeframes})
 
@@ -369,12 +384,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = _api_get("/sentiment")
 
         elif name == "cerebrus_funding":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             lookback = arguments.get("lookback_hours", 24)
             result = _api_get(f"/funding/{coin}", params={"lookback_hours": lookback})
 
         elif name == "cerebrus_bundle":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             timeframes = arguments.get("timeframes", "1h,4h")
             result = _api_get(f"/bundle/{coin}", params={"timeframes": timeframes})
 
@@ -383,11 +398,11 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = _api_get("/screener", params={"top_n": top_n})
 
         elif name == "cerebrus_oi":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             result = _api_get(f"/oi/{coin}")
 
         elif name == "cerebrus_spread":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             result = _api_get(f"/spread/{coin}")
 
         elif name == "cerebrus_correlation":
@@ -398,18 +413,18 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = _api_get("/arb", params={"limit": limit})
 
         elif name == "cerebrus_cex_dex":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             result = _api_get(f"/cex-dex/{coin}")
 
         elif name == "cerebrus_basis":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             result = _api_get(f"/basis/{coin}")
 
         elif name == "cerebrus_depeg":
             result = _api_get("/depeg")
 
         elif name == "cerebrus_liquidations":
-            coin = arguments["coin"]
+            coin = _validate_coin(arguments["coin"])
             result = _api_get(f"/liquidations/{coin}")
 
         else:
@@ -417,6 +432,11 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
         return [TextContent(type="text", text=_format_response(result))]
 
+    except ValueError as e:
+        return [TextContent(
+            type="text",
+            text=_format_response({"error": str(e)}),
+        )]
     except httpx.HTTPStatusError as e:
         error_body = e.response.text[:500] if e.response else "No response body"
         return [TextContent(
@@ -437,13 +457,153 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         )]
 
 
+# ── CLI (--json mode) ───────────────────────────────────────────────────────
+
+# Maps CLI tool names to (api_path_template, param_specs).
+# param_specs: list of (name, required, type, default).
+_CLI_TOOLS: dict[str, tuple[str, list[tuple[str, bool, type, Any]]]] = {
+    "list-coins":    ("/coins",             []),
+    "health":        ("/health",            []),
+    "pulse":         ("/pulse/{coin}",      [("coin", True, str, None),
+                                             ("timeframes", False, str, "1h,4h")]),
+    "sentiment":     ("/sentiment",         []),
+    "funding":       ("/funding/{coin}",    [("coin", True, str, None),
+                                             ("lookback_hours", False, int, 24)]),
+    "bundle":        ("/bundle/{coin}",     [("coin", True, str, None),
+                                             ("timeframes", False, str, "1h,4h")]),
+    "screener":      ("/screener",          [("top_n", False, int, 30)]),
+    "oi":            ("/oi/{coin}",         [("coin", True, str, None)]),
+    "spread":        ("/spread/{coin}",     [("coin", True, str, None)]),
+    "correlation":   ("/correlation",       []),
+    "stress":        ("/arb",              [("limit", False, int, 10)]),
+    "cex-dex":       ("/cex-dex/{coin}",    [("coin", True, str, None)]),
+    "basis":         ("/basis/{coin}",      [("coin", True, str, None)]),
+    "depeg":         ("/depeg",             []),
+    "liquidations":  ("/liquidations/{coin}", [("coin", True, str, None)]),
+}
+
+
+def _cli_call(tool: str, kv_args: list[str]) -> int:
+    """Execute a tool via direct HTTP and print JSON to stdout. Returns exit code."""
+    if tool not in _CLI_TOOLS:
+        available = ", ".join(sorted(_CLI_TOOLS))
+        print(json.dumps({"error": f"Unknown tool: {tool}", "available": available}),
+              file=sys.stderr)
+        return 1
+
+    path_template, param_specs = _CLI_TOOLS[tool]
+
+    # Parse key=value pairs
+    parsed: dict[str, Any] = {}
+    positional_idx = 0
+    required_names = [name for name, req, _, _ in param_specs if req]
+
+    for arg in kv_args:
+        if "=" in arg:
+            k, v = arg.split("=", 1)
+            parsed[k] = v
+        else:
+            # Treat positional args as filling required params in order
+            if positional_idx < len(required_names):
+                parsed[required_names[positional_idx]] = arg
+                positional_idx += 1
+            else:
+                print(json.dumps({"error": f"Unexpected positional argument: {arg}"}),
+                      file=sys.stderr)
+                return 1
+
+    # Reject unrecognized keys
+    known_names = {name for name, _, _, _ in param_specs}
+    unknown = set(parsed) - known_names
+    if unknown:
+        print(json.dumps({"error": f"Unknown parameter(s): {', '.join(sorted(unknown))}",
+                          "valid": sorted(known_names) if known_names else []}),
+              file=sys.stderr)
+        return 1
+
+    # Validate and coerce types
+    params: dict[str, Any] = {}
+    path_vars: dict[str, str] = {}
+
+    for name, required, typ, default in param_specs:
+        if name in parsed:
+            try:
+                params[name] = typ(parsed[name])
+            except (ValueError, TypeError):
+                print(json.dumps({"error": f"Invalid value for {name}: {parsed[name]}"}),
+                      file=sys.stderr)
+                return 1
+        elif required:
+            print(json.dumps({"error": f"Missing required argument: {name}",
+                              "usage": f"cerebrus-pulse-mcp --json {tool} {name}=VALUE"}),
+                  file=sys.stderr)
+            return 1
+        else:
+            params[name] = default
+
+    # Separate path variables from query params (validate coin tickers)
+    for name in list(params):
+        if "{" + name + "}" in path_template:
+            value = str(params.pop(name))
+            if name == "coin":
+                try:
+                    value = _validate_coin(value)
+                except ValueError as e:
+                    print(json.dumps({"error": str(e)}), file=sys.stderr)
+                    return 1
+            path_vars[name] = value
+
+    path = path_template.format(**path_vars)
+
+    # Remove params that equal their defaults (keep the URL clean)
+    query_params = {k: v for k, v in params.items() if v is not None}
+
+    try:
+        result = _api_get(path, params=query_params if query_params else None)
+        print(json.dumps(result, indent=2))
+        return 0
+    except (httpx.HTTPStatusError, httpx.RequestError) as e:
+        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        return 1
+
+
+# ── Entry Points ────────────────────────────────────────────────────────────
+
 async def _run():
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
 def main():
-    """Entry point for the MCP server."""
+    """Entry point — MCP server (default) or CLI with --json flag."""
+    parser = argparse.ArgumentParser(
+        prog="cerebrus-pulse-mcp",
+        description="Cerebrus Pulse MCP server — crypto intelligence for AI agents",
+    )
+    parser.add_argument(
+        "--json",
+        dest="json_tool",
+        metavar="TOOL",
+        nargs="?",
+        const="__list__",
+        help=(
+            "CLI mode: call a tool and print JSON to stdout. "
+            "Use '--json' alone to list tools, or '--json TOOL [key=value ...]' to call one."
+        ),
+    )
+    parser.add_argument("cli_args", nargs="*", help=argparse.SUPPRESS)
+
+    args = parser.parse_args()
+
+    if args.json_tool is not None:
+        if args.json_tool == "__list__":
+            tools = {name: {"params": {p[0]: {"required": p[1], "type": p[2].__name__, "default": p[3]}
+                                       for p in specs}}
+                     for name, (_, specs) in sorted(_CLI_TOOLS.items())}
+            print(json.dumps({"tools": tools}, indent=2))
+            sys.exit(0)
+        sys.exit(_cli_call(args.json_tool, args.cli_args))
+
     import asyncio
     asyncio.run(_run())
 

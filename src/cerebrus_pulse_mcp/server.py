@@ -6,9 +6,9 @@ Supports both free endpoints (health, coins) and paid x402 endpoints
 (pulse, sentiment, funding, bundle).
 
 For paid endpoints, the server makes standard HTTP requests. If x402 payment
-is configured (via CEREBRUS_WALLET_KEY env var), it handles the 402 flow
-automatically. Otherwise, it returns the 402 response details so the caller
-can handle payment.
+is configured (via CEREBRUS_WALLET_KEY or CEREBRUS_WALLET_KEY_SOLANA env var),
+it handles the 402 flow automatically. Otherwise, it returns the 402 response
+details so the caller can handle payment.
 
 Disclaimer: Data provided is for informational purposes only and does not
 constitute financial advice. Cryptocurrency trading involves substantial
@@ -66,10 +66,10 @@ def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
             # Return payment details so the agent/user knows cost
             return {
                 "status": "payment_required",
-                "message": "This endpoint requires x402 USDC payment on Base.",
+                "message": "This endpoint requires x402 USDC payment on Base or Solana.",
                 "url": f"{BASE_URL}{path}",
                 "payment_details": resp.headers.get("X-Payment", "See x402 SDK docs"),
-                "help": "Install the x402 SDK and set CEREBRUS_WALLET_KEY to enable auto-payment. See https://cerebruspulse.xyz/guides/x402-payments",
+                "help": "Install the x402 SDK and set CEREBRUS_WALLET_KEY (Base) or CEREBRUS_WALLET_KEY_SOLANA (Solana) to enable auto-payment. See https://cerebruspulse.xyz/guides/x402-payments",
             }
 
         if resp.status_code == 429:

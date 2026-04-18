@@ -26,7 +26,7 @@ MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto 
 | `cerebrus_depeg` | USDC collateral health via Chainlink | $0.01 |
 | `cerebrus_liquidations` | Liquidation heatmap across 5 leverage tiers | $0.03 |
 
-Paid endpoints use [x402](https://x402.org/) micropayments (USDC on Base). Free tools work without any configuration.
+Paid endpoints use [x402](https://x402.org/) micropayments (USDC on **Base** or **Solana**). Free tools work without any configuration.
 
 ## Install
 
@@ -45,7 +45,7 @@ Add to your MCP config (`claude_desktop_config.json`, `.cursor/mcp.json`, etc.):
 }
 ```
 
-To enable automatic x402 payments for paid endpoints, add your Base wallet key:
+To enable automatic x402 payments for paid endpoints, add your wallet key:
 
 ```json
 {
@@ -54,12 +54,15 @@ To enable automatic x402 payments for paid endpoints, add your Base wallet key:
       "command": "uvx",
       "args": ["cerebrus-pulse-mcp"],
       "env": {
-        "CEREBRUS_WALLET_KEY": "your-base-wallet-private-key"
+        "CEREBRUS_WALLET_KEY": "your-base-wallet-private-key",
+        "CEREBRUS_WALLET_KEY_SOLANA": "your-solana-wallet-private-key"
       }
     }
   }
 }
 ```
+
+Set either or both — the x402 SDK picks the chain your wallet is configured for.
 
 ### pip
 
@@ -94,6 +97,7 @@ Arguments can be passed positionally (for coin) or as `key=value` pairs.
 |---------------------|-------------|----------|
 | `CEREBRUS_BASE_URL` | API base URL (default: `https://api.cerebruspulse.xyz`) | No |
 | `CEREBRUS_WALLET_KEY` | Base wallet private key for x402 auto-payment | No |
+| `CEREBRUS_WALLET_KEY_SOLANA` | Solana wallet private key for x402 auto-payment | No |
 
 ## Example Response
 
@@ -103,7 +107,7 @@ $ cerebrus-pulse-mcp --json health
   "status": "ok",
   "engine": "available",
   "kill_switch": "enabled",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }
 ```
 

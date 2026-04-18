@@ -2,6 +2,17 @@
 
 All notable changes to Cerebrus Pulse MCP Server.
 
+## [0.4.1] - 2026-04-18
+
+### Added
+- Solana payment support documentation — x402 now accepts USDC on Base or Solana
+- `CEREBRUS_WALLET_KEY_SOLANA` environment variable for Solana auto-payment
+- MCP config example showing both Base and Solana wallet keys
+
+### Changed
+- 402 response messaging updated for dual-chain (Base + Solana)
+- Health endpoint version bumped to 1.2.0 (reflects server-side Solana support)
+
 ## [0.4.0] - 2026-04-15
 
 ### Added

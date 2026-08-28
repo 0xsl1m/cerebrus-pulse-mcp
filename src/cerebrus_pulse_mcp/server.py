@@ -5,10 +5,16 @@ Exposes Cerebrus Pulse crypto intelligence API as MCP tools for AI agents.
 Supports both free endpoints (health, coins) and paid x402 endpoints
 (pulse, sentiment, funding, bundle).
 
-For paid endpoints, the server makes standard HTTP requests. If x402 payment
-is configured (via CEREBRUS_WALLET_KEY or CEREBRUS_WALLET_KEY_SOLANA env var),
-it handles the 402 flow automatically. Otherwise, it returns the 402 response
-details so the caller can handle payment.
+Paid endpoints:
+  * With CEREBRUS_WALLET_KEY set AND the payment extras installed
+    (pip install "cerebrus-pulse-mcp[pay]"), the 402 flow is settled
+    automatically against Base and the data is returned directly.
+  * Otherwise the tool returns structured payment terms (price, network,
+    recipient) parsed from the 402 so the caller can pay itself.
+
+Versions before 0.5.0 advertised automatic payment but never implemented it --
+there was no x402 client dependency at all, and the 402 handler read a header
+name the server does not send. Paid tools were a dead end for every caller.
 
 Disclaimer: Data provided is for informational purposes only and does not
 constitute financial advice. Cryptocurrency trading involves substantial
@@ -57,19 +63,114 @@ def _validate_coin(coin: str) -> str:
     return coin
 
 
+_PAYING_SESSION: Any = None
+_PAYMENT_INIT_ERROR: str | None = None
+
+
+def _paying_session():
+    """Build (once) a requests Session that settles x402 payments automatically.
+
+    Returns None when no wallet key is configured or the payment extras are not
+    installed. Never raises: an unpayable request must still return useful
+    payment terms rather than blowing up the tool call.
+    """
+    global _PAYING_SESSION, _PAYMENT_INIT_ERROR
+    if _PAYING_SESSION is not None or _PAYMENT_INIT_ERROR is not None:
+        return _PAYING_SESSION
+
+    key = os.environ.get("CEREBRUS_WALLET_KEY", "").strip()
+    if not key:
+        _PAYMENT_INIT_ERROR = "no_wallet_key"
+        return None
+
+    try:
+        from eth_account import Account
+        from x402 import x402ClientSync
+        from x402.http.clients import x402_requests
+        from x402.mechanisms.evm.exact import register_exact_evm_client
+    except ImportError as e:
+        _PAYMENT_INIT_ERROR = (
+            f"payment extras missing ({e}). Install with: "
+            'pip install "cerebrus-pulse-mcp[pay]"'
+        )
+        return None
+
+    try:
+        client = x402ClientSync()
+        # register_exact_evm_client wraps a raw LocalAccount for us, and
+        # registers BOTH the v2 scheme and the v1 legacy schemes.
+        register_exact_evm_client(client, Account.from_key(key))
+        _PAYING_SESSION = x402_requests(client)
+        return _PAYING_SESSION
+    except Exception as e:  # noqa: BLE001 - degrade to unpaid, never crash
+        _PAYMENT_INIT_ERROR = f"payment client init failed: {e}"
+        return None
+
+
+def _payment_terms(resp) -> dict[str, Any]:
+    """Turn a 402 into structured, actionable terms for the calling agent.
+
+    The gateway emits terms in BOTH the x402 v1 JSON body and the v2
+    `Payment-Required` header. Read the body: it is the interoperable shape.
+    (Earlier versions of this file read a header named `X-Payment`, which the
+    server has never sent, so callers got nothing usable.)
+    """
+    terms: dict[str, Any] = {}
+    try:
+        body = resp.json()
+        offers = body.get("accepts") or []
+        if offers:
+            offer = offers[0]
+            terms = {
+                "price_usdc": int(offer["maxAmountRequired"]) / 1_000_000,
+                "network": offer.get("network"),
+                "pay_to": offer.get("payTo"),
+                "asset": offer.get("asset"),
+                "resource": offer.get("resource"),
+            }
+    except Exception:  # noqa: BLE001 - a malformed 402 is still a 402
+        pass
+    return terms
+
+
 def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
-    """Make a GET request to the Cerebrus Pulse API."""
+    """Make a GET request to the Cerebrus Pulse API, paying if configured."""
+    session = _paying_session()
+    if session is not None:
+        try:
+            resp = session.get(f"{BASE_URL}{path}", params=params, timeout=REQUEST_TIMEOUT)
+            if resp.status_code == 200:
+                return resp.json()
+            # Fall through to the unpaid path so the caller still gets terms.
+        except Exception as e:  # noqa: BLE001
+            return {
+                "status": "payment_failed",
+                "message": f"x402 payment attempt failed: {e}",
+                "url": f"{BASE_URL}{path}",
+                "help": "Check the wallet has USDC and a little ETH for gas on Base.",
+            }
+
     with _make_client() as client:
         resp = client.get(path, params=params)
 
         if resp.status_code == 402:
-            # Return payment details so the agent/user knows cost
+            if _PAYMENT_INIT_ERROR == "no_wallet_key":
+                help_text = (
+                    "Set CEREBRUS_WALLET_KEY to a funded Base wallet private key and "
+                    'install the payment extras (pip install "cerebrus-pulse-mcp[pay]") '
+                    "to pay automatically. See https://cerebruspulse.xyz/guides/x402-payments"
+                )
+            else:
+                help_text = (
+                    f"Auto-payment unavailable: {_PAYMENT_INIT_ERROR}. "
+                    "See https://cerebruspulse.xyz/guides/x402-payments"
+                )
             return {
                 "status": "payment_required",
-                "message": "This endpoint requires x402 USDC payment on Base or Solana.",
+                "message": "This endpoint requires an x402 USDC payment on Base or Solana.",
                 "url": f"{BASE_URL}{path}",
-                "payment_details": resp.headers.get("X-Payment", "See x402 SDK docs"),
-                "help": "Install the x402 SDK and set CEREBRUS_WALLET_KEY (Base) or CEREBRUS_WALLET_KEY_SOLANA (Solana) to enable auto-payment. See https://cerebruspulse.xyz/guides/x402-payments",
+                "payment_terms": _payment_terms(resp),
+                "help": help_text,
             }
 
         if resp.status_code == 429:
@@ -117,7 +218,7 @@ async def list_tools() -> list[Tool]:
                 "Supports 6 timeframes: 5m, 15m, 1h, 4h, 1d, 1w (daily/weekly aggregated from 1h). "
                 "Returns RSI, EMAs (20/50/200), ATR, Bollinger Bands, VWAP, Z-score, "
                 "trend direction, cross-timeframe confluence with alignment scoring, "
-                "derivatives data (funding, OI, spread), and market regime. Cost: $0.02 USDC via x402."
+                "derivatives data (funding, OI, spread), and market regime. Cost: $0.025 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -177,7 +278,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Get complete analysis bundle: multi-timeframe technical analysis "
                 "(5m/15m/1h/4h/1d/1w) + sentiment + funding combined in one call. "
-                "20% discount vs individual endpoints. Cost: $0.04 USDC via x402."
+                "17% discount vs individual endpoints. Cost: $0.05 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -201,7 +302,7 @@ async def list_tools() -> list[Tool]:
                 "Scan all 30+ coins for top trading signals. Returns RSI zone, trend, "
                 "volatility regime, funding bias, multi-TF confluence score with alignment, "
                 "and OI trend for each coin. "
-                "Much cheaper than calling pulse individually. Cost: $0.04 USDC via x402."
+                "Much cheaper than calling pulse individually. Cost: $0.06 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -221,7 +322,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Get open interest analysis for a Hyperliquid perpetual. "
                 "Returns OI delta (1h/4h/24h), percentile rank, trend direction, "
-                "and price-OI divergence signals. Cost: $0.01 USDC via x402."
+                "and price-OI divergence signals. Cost: $0.015 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -239,7 +340,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Get spread and liquidity analysis for a Hyperliquid perpetual. "
                 "Returns bid-ask spread, estimated slippage at $10k/$50k/$100k/$500k, "
-                "and liquidity score (1-10). Cost: $0.008 USDC via x402."
+                "and liquidity score (1-10). Cost: $0.015 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -258,7 +359,7 @@ async def list_tools() -> list[Tool]:
                 "Get BTC-altcoin correlation matrix for top 15 Hyperliquid perpetuals. "
                 "Returns 30-day rolling correlations, correlation regime "
                 "(CORRELATED/DECORRELATED/MIXED), and sector averages. "
-                "Cost: $0.03 USDC via x402."
+                "Cost: $0.05 USDC via x402."
             ),
             inputSchema={
                 "type": "object",
@@ -272,7 +373,7 @@ async def list_tools() -> list[Tool]:
                 "Scans 8 chains (Arbitrum, Base, Optimism, Polygon, etc.) for price dislocations. "
                 "Returns stress level (LOW/MODERATE/HIGH/EXTREME), score (0-1), "
                 "spread statistics, chain routes, and recent scan summaries. "
-                "Unique signal — not available from any other provider. Cost: $0.015 USDC via x402."
+                "Unique signal — not available from any other provider. Cost: $0.02 USDC via x402."
             ),
             inputSchema={
                 "type": "object",

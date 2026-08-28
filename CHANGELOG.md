@@ -2,6 +2,34 @@
 
 All notable changes to Cerebrus Pulse MCP Server.
 
+## [0.5.0] - 2026-08-28
+
+### Fixed
+- **Automatic x402 payment now actually works.** Since 0.3.0 the package
+  advertised auto-payment via `CEREBRUS_WALLET_KEY` but shipped no x402 client
+  dependency at all - the 402 branch only returned a message, so every paid
+  tool was a dead end. Payment is now implemented against the x402 SDK.
+- 402 handling read a response header named `X-Payment`, which the API has
+  never sent. Payment terms are now parsed from the x402 v1 JSON body, so
+  callers that pay themselves get a real price, network, and recipient.
+- Corrected 7 of 13 advertised prices, which had drifted from the live API:
+  pulse $0.02 -> $0.025, bundle $0.04 -> $0.05, screener $0.04 -> $0.06,
+  oi $0.01 -> $0.015, spread $0.008 -> $0.015, correlation $0.03 -> $0.05,
+  stress $0.015 -> $0.02.
+- Bundle savings claim corrected from 20% to 17% (components total $0.06).
+- `cerebrus_basis` description carried a copy-pasted funding-rate sentence
+  describing the wrong metric.
+
+### Added
+- `pay` optional extra: `pip install "cerebrus-pulse-mcp[pay]"` installs the
+  x402 EVM client. Kept optional so free-endpoint users stay dependency-light.
+- Paid tools return structured `payment_terms` (price, network, pay_to, asset)
+  instead of an opaque message when no wallet is configured.
+
+### Known limitations
+- Auto-payment covers Base (EVM) only. `CEREBRUS_WALLET_KEY_SOLANA` is not yet
+  wired to a Solana signer; the API still accepts Solana if you pay yourself.
+
 ## [0.4.1] - 2026-04-18
 
 ### Added

@@ -1,5 +1,9 @@
 # Cerebrus Pulse MCP
 
+<!-- Ownership marker for the MCP registry; must match server.json name. -->
+mcp-name: io.github.0xsl1m/cerebrus-pulse-mcp
+
+
 [![PyPI](https://img.shields.io/pypi/v/cerebrus-pulse-mcp)](https://pypi.org/project/cerebrus-pulse-mcp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/cerebrus-pulse-mcp/)

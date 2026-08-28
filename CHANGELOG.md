@@ -2,6 +2,17 @@
 
 All notable changes to Cerebrus Pulse MCP Server.
 
+## [0.5.1] - 2026-08-28
+
+### Added
+- `mcp-name:` ownership marker in the README, required by the MCP registry to
+  verify the `io.github.0xsl1m/*` namespace. Without it publishing is rejected,
+  which is why the registry entry sat at 0.2.0 from 2026-03-05.
+
+### Changed
+- Shortened the registry description to fit the registry's 100-character limit
+  (the previous one was 196 characters and was rejected outright).
+
 ## [0.5.0] - 2026-08-28
 
 ### Fixed

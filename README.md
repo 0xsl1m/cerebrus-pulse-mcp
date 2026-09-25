@@ -16,21 +16,25 @@ MCP server for [Cerebrus Pulse](https://cerebruspulse.xyz) — real-time crypto 
 |------|-------------|------|
 | `cerebrus_health` | Gateway health check | Free |
 | `cerebrus_list_coins` | List all available tickers (50+) | Free |
-| `cerebrus_pulse` | Multi-timeframe technicals (RSI, EMAs, BBands, VWAP, regime) | $0.02 |
+| `cerebrus_pulse` | Multi-timeframe technicals (RSI, EMAs, BBands, VWAP, regime) | $0.025 |
 | `cerebrus_sentiment` | Aggregated market sentiment + fear/greed | $0.01 |
 | `cerebrus_funding` | Funding rate analysis with historical context | $0.01 |
-| `cerebrus_bundle` | Pulse + sentiment + funding combined (20% discount) | $0.04 |
-| `cerebrus_screener` | Scan all coins for top signals | $0.04 |
-| `cerebrus_oi` | Open interest delta, percentile, trend | $0.01 |
-| `cerebrus_spread` | Bid-ask spread + slippage estimates | $0.008 |
-| `cerebrus_correlation` | BTC-altcoin correlation matrix | $0.03 |
-| `cerebrus_stress` | Cross-chain arbitrage-derived market stress index | $0.015 |
+| `cerebrus_bundle` | Pulse + sentiment + funding combined | $0.05 |
+| `cerebrus_screener` | Scan all coins for top signals | $0.06 |
+| `cerebrus_oi` | Open interest delta, percentile, trend | $0.015 |
+| `cerebrus_spread` | Bid-ask spread + slippage estimates | $0.015 |
+| `cerebrus_correlation` | BTC-altcoin correlation matrix | $0.05 |
+| `cerebrus_stress` | Cross-chain arbitrage-derived market stress index | $0.02 |
 | `cerebrus_cex_dex` | CEX vs DEX price divergence | $0.02 |
 | `cerebrus_basis` | Chainlink oracle vs Hyperliquid basis | $0.02 |
 | `cerebrus_depeg` | USDC collateral health via Chainlink | $0.01 |
 | `cerebrus_liquidations` | Liquidation heatmap across 5 leverage tiers | $0.03 |
 
 Paid endpoints use [x402](https://x402.org/) micropayments (USDC on **Base** or **Solana**). Free tools work without any configuration.
+
+Prices are checked against the API's live x402 manifest
+(`https://api.cerebruspulse.xyz/.well-known/x402`) with
+`python scripts/check_prices.py --live`, which CI runs.
 
 ## Install
 

@@ -1,0 +1,144 @@
+{
+  "x402Version": 2,
+  "name": "Cerebrus Pulse",
+  "description": "Pay-per-call crypto derivatives intelligence for AI agents.",
+  "documentation": "https://cerebruspulse.xyz",
+  "openapi": "https://api.cerebruspulse.xyz/openapi.json",
+  "networks": [
+    "eip155:8453",
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+  ],
+  "asset": "USDC",
+  "endpoints": [
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/arb",
+      "description": "Cerebrus Stress: cross-chain market stress index from arbitrage detection across 8 chains",
+      "price": {
+        "amount": 0.02,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/basis/*",
+      "description": "Cerebrus Basis: HL perpetual oracle vs Chainlink spot price basis analysis",
+      "price": {
+        "amount": 0.02,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/bundle/*",
+      "description": "Cerebrus Bundle: pulse + sentiment + funding + spread combined (9% discount)",
+      "price": {
+        "amount": 0.05,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/cex-dex/*",
+      "description": "Cerebrus CEX-DEX: cross-venue price divergence between Coinbase and DEX/Chainlink",
+      "price": {
+        "amount": 0.02,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/correlation",
+      "description": "Cerebrus Correlation: BTC-alt correlation matrix with regime classification",
+      "price": {
+        "amount": 0.05,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/depeg",
+      "description": "Cerebrus Depeg: USDC collateral health monitor via Chainlink oracle",
+      "price": {
+        "amount": 0.01,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/funding/*",
+      "description": "Cerebrus Funding: historical funding rate analysis",
+      "price": {
+        "amount": 0.01,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/liquidations/*",
+      "description": "Cerebrus Liquidations: estimated liquidation heatmap by leverage tier with cascade risk",
+      "price": {
+        "amount": 0.03,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/oi/*",
+      "description": "Cerebrus OI: open interest analysis with delta, percentile, and divergence",
+      "price": {
+        "amount": 0.015,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/pulse/*",
+      "description": "Cerebrus Pulse: multi-timeframe technical analysis for 50+ perpetuals",
+      "price": {
+        "amount": 0.025,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/screener",
+      "description": "Cerebrus Screener: scan 50+ coins for top signals, trends, and regime",
+      "price": {
+        "amount": 0.06,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/sentiment",
+      "description": "Cerebrus Sentiment: bucketed multi-source market sentiment",
+      "price": {
+        "amount": 0.01,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "https://api.cerebruspulse.xyz/spread/*",
+      "description": "Cerebrus Spread: bid-ask spread, slippage estimates, and liquidity scoring",
+      "price": {
+        "amount": 0.015,
+        "currency": "USD",
+        "asset": "USDC"
+      }
+    }
+  ]
+}

@@ -51,6 +51,10 @@ jobs:
         run: |
           python -m pip install -e ".[test]"
           python -m pytest -q
+      - name: Default payTo pin matches the live gateway
+        # A release pinning a payTo the gateway does not use would refuse
+        # every payment. One unpaid GET; nothing is signed.
+        run: python scripts/check_payto.py --live
       - name: Build
         run: |
           python -m pip install build==1.6.1 twine==7.0.0

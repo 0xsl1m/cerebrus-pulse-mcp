@@ -34,7 +34,9 @@ Paid endpoints use [x402](https://x402.org/) micropayments (USDC on **Base** or 
 
 Prices are checked against the API's live x402 manifest
 (`https://api.cerebruspulse.xyz/.well-known/x402`) with
-`python scripts/check_prices.py --live`, which CI runs.
+`python scripts/check_prices.py --live`, which CI runs. The auto-pay payee pin
+is checked against a live 402 with `python scripts/check_payto.py --live`,
+which CI and the release workflow run.
 
 ## Install
 

@@ -75,7 +75,9 @@ def _validate_coin(coin: str) -> str:
 
 # The published Base payTo of api.cerebruspulse.xyz. Auto-pay refuses any other
 # payee unless CEREBRUS_ALLOWED_PAYTO says otherwise. This default MUST be
-# updated whenever the gateway's payTo address is rotated.
+# updated whenever the gateway's payTo address is rotated:
+# scripts/check_payto.py --live (CI, release workflow) fails while the two
+# differ, and scripts/release.py check refuses an address in RETIRED_PAYTO.
 DEFAULT_ALLOWED_PAYTO = "0xfDFB12764c76B5113153acaa2317081F4Abc2a88"
 # The most expensive endpoint costs $0.06 (screener).
 DEFAULT_MAX_PAYMENT_USD = "0.10"

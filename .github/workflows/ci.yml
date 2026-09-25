@@ -95,3 +95,7 @@ jobs:
           cerebrus-pulse-mcp --json list-coins > /dev/null
       - name: Advertised prices match /.well-known/x402
         run: python scripts/check_prices.py --live
+      - name: Default payTo pin matches the live 402
+        # One unpaid GET to a paid route; nothing is signed. Goes red when the
+        # gateway's payTo is rotated and DEFAULT_ALLOWED_PAYTO is not.
+        run: python scripts/check_payto.py --live

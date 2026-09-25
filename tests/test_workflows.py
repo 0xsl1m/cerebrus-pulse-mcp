@@ -51,6 +51,18 @@ def test_ci_runs_tests_on_push_and_pull_request():
     assert any("pytest" in run for run in test_steps)
 
 
+def test_live_ci_checks_the_default_payto():
+    runs = [s.get("run", "") for s in _load("ci.yml")["jobs"]["live"]["steps"]]
+    assert "python scripts/check_payto.py --live" in runs
+
+
+def test_publish_checks_the_default_payto_before_building():
+    steps = _load("publish.yml")["jobs"]["build"]["steps"]
+    names = [s.get("name") for s in steps]
+    check = next(i for i, s in enumerate(steps) if "check_payto.py --live" in s.get("run", ""))
+    assert check < names.index("Build")
+
+
 def test_publish_uses_trusted_publishing_without_secrets():
     text = (WORKFLOWS / "publish.yml").read_text(encoding="utf-8")
     assert "secrets." not in text

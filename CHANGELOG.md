@@ -35,6 +35,9 @@ All notable changes to Cerebrus Pulse MCP Server.
   Publishing with provenance attestations.
 - `scripts/check_prices.py`, which checks advertised prices against the API's
   x402 manifest.
+- `scripts/check_payto.py`, which fails when the default payTo pin no longer
+  matches the payee in the API's live 402 (CI and `publish.yml` run it), and a
+  `release.py check` rule that refuses a retired address as that default.
 
 ### Changed
 - The `--json` CLI auto-pays only with `CEREBRUS_CLI_AUTOPAY=1`. Each CLI call

@@ -13,7 +13,8 @@ pushed v* tag, through PyPI Trusted Publishing: no API token, and the upload
 carries provenance attestations. --twine is the old laptop upload, kept only
 as a fallback until the trusted publisher is configured on PyPI.
 
-Ensures pyproject.toml, __init__.py, server.json, CHANGELOG.md, and git tag all agree.
+Ensures pyproject.toml, __init__.py, server.json, CHANGELOG.md, and git tag all agree,
+and that the auto-pay default payTo is not a retired address.
 """
 
 import json
@@ -27,6 +28,17 @@ PYPROJECT = ROOT / "pyproject.toml"
 INIT = ROOT / "src" / "cerebrus_pulse_mcp" / "__init__.py"
 CHANGELOG = ROOT / "CHANGELOG.md"
 SERVER_MANIFEST = ROOT / "server.json"
+SERVER = ROOT / "src" / "cerebrus_pulse_mcp" / "server.py"
+
+# Base payTo addresses the gateway has moved off or is moving off, lowercase.
+# A release must not pin one as the auto-pay default (DEFAULT_ALLOWED_PAYTO):
+# installed clients would pay it until the gateway switches, then refuse every
+# payment after. Entries stay after a rotation so an old address cannot come
+# back as the default. scripts/check_payto.py --live checks the new default
+# against the gateway.
+RETIRED_PAYTO = frozenset({
+    "0xfdfb12764c76b5113153acaa2317081f4abc2a88",
+})
 
 
 def get_pyproject_version() -> str:
@@ -54,6 +66,12 @@ def get_server_manifest_versions() -> tuple[str, str]:
     return str(data.get("version", "MISSING")), str(package_version)
 
 
+def get_default_pay_to() -> str:
+    text = SERVER.read_text(encoding="utf-8")
+    m = re.search(r'^DEFAULT_ALLOWED_PAYTO\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    return m.group(1) if m else "MISSING"
+
+
 def get_git_tags() -> list[str]:
     result = subprocess.run(
         ["git", "tag", "-l", "v*"], capture_output=True, text=True, cwd=ROOT
@@ -66,6 +84,7 @@ def check():
     ini = get_init_version()
     chg = get_changelog_version()
     manifest, package = get_server_manifest_versions()
+    pay_to = get_default_pay_to()
     tags = get_git_tags()
 
     print(f"  pyproject.toml:  {pyp}")
@@ -73,6 +92,7 @@ def check():
     print(f"  CHANGELOG.md:    {chg}")
     print(f"  server.json:     {manifest}")
     print(f"  package entry:   {package}")
+    print(f"  default payTo:   {pay_to}")
     print(f"  git tags:        {', '.join(tags) or '(none)'}")
 
     issues = []
@@ -86,6 +106,13 @@ def check():
         )
     if f"v{pyp}" not in tags:
         issues.append(f"git tag v{pyp} missing")
+    if pay_to == "MISSING":
+        issues.append("DEFAULT_ALLOWED_PAYTO not found in server.py")
+    elif pay_to.lower() in RETIRED_PAYTO:
+        issues.append(
+            f"DEFAULT_ALLOWED_PAYTO ({pay_to}) is a retired payTo; set it to the "
+            "gateway's current Base payTo and run scripts/check_payto.py --live"
+        )
 
     if issues:
         print(f"\n  PROBLEMS:")

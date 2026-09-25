@@ -13,9 +13,46 @@
       "registryType": "pypi",
       "identifier": "cerebrus-pulse-mcp",
       "version": "0.5.1",
+      "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
-      }
+      },
+      "environmentVariables": [
+        {
+          "name": "CEREBRUS_WALLET_KEY",
+          "description": "Private key of a dedicated, low-balance Base wallet for x402 auto-payment. Leave unset to use free tools and get payment terms only.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "CEREBRUS_MAX_PAYMENT_USD",
+          "description": "Largest single payment auto-pay may sign, in USD.",
+          "isRequired": false,
+          "format": "number",
+          "default": "0.10"
+        },
+        {
+          "name": "CEREBRUS_MAX_SPEND_USD",
+          "description": "Total auto-pay may sign while the server process runs, in USD.",
+          "isRequired": false,
+          "format": "number",
+          "default": "1.00"
+        },
+        {
+          "name": "CEREBRUS_ALLOWED_PAYTO",
+          "description": "Comma-separated payTo addresses auto-pay may pay. Defaults to the published Cerebrus Pulse Base address.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "CEREBRUS_BASE_URL",
+          "description": "API base URL.",
+          "isRequired": false,
+          "format": "string",
+          "default": "https://api.cerebruspulse.xyz"
+        }
+      ]
     }
   ]
 }

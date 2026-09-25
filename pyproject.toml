@@ -32,7 +32,7 @@ dependencies = [
     # x402 auto-payment. Core, not an extra: uvx and the MCP registry install
     # the bare package into an isolated env, so an optional extra never
     # reached the documented setups and paid tools could not pay.
-    "x402[evm]>=2.5,<3",
+    "x402[evm]>=2.20,<3",  # 2.20 added client spend_controls
     "eth-account>=0.13",
     "requests>=2.32",
 ]
@@ -43,6 +43,7 @@ dependencies = [
 pay = []
 test = [
     "pytest>=8",
+    "jsonschema>=4",
 ]
 
 [project.urls]

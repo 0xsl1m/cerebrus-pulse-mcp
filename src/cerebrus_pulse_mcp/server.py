@@ -12,6 +12,10 @@ Paid endpoints:
     documented uvx setup never installed).
   * Otherwise the tool returns structured payment terms (price, network,
     recipient) parsed from the 402 so the caller can pay itself.
+  * Auto-payment is bounded client-side before anything is signed: a per-call
+    cap (CEREBRUS_MAX_PAYMENT_USD), a per-process budget
+    (CEREBRUS_MAX_SPEND_USD), and a payee allowlist (CEREBRUS_ALLOWED_PAYTO).
+    Only USDC on Base is paid.
 
 Versions before 0.5.0 advertised automatic payment but never implemented it --
 there was no x402 client dependency at all, and the 402 handler read a header
@@ -27,6 +31,7 @@ import json
 import os
 import re
 import sys
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
@@ -64,8 +69,130 @@ def _validate_coin(coin: str) -> str:
     return coin
 
 
+# ── Spend controls ──────────────────────────────────────────────────────────
+
+# The published Base payTo of api.cerebruspulse.xyz. Auto-pay refuses any other
+# payee unless CEREBRUS_ALLOWED_PAYTO says otherwise. This default MUST be
+# updated whenever the gateway's payTo address is rotated.
+DEFAULT_ALLOWED_PAYTO = "0xfDFB12764c76B5113153acaa2317081F4Abc2a88"
+# The most expensive endpoint costs $0.06 (screener).
+DEFAULT_MAX_PAYMENT_USD = "0.10"
+# Total auto-pay may sign during one server process.
+DEFAULT_MAX_SPEND_USD = "1.00"
+
+_BASE_NETWORKS = frozenset({"eip155:8453", "base"})  # x402 v2 / v1 names
+_BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+_USDC_UNIT = Decimal(1_000_000)
+_EVM_ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
+
+
+def _env_usd(name: str, default: str) -> Decimal:
+    raw = os.environ.get(name, "").strip() or default
+    try:
+        value = Decimal(raw.lstrip("$"))
+    except InvalidOperation:
+        raise ValueError(f"{name}={raw!r} is not a USD amount") from None
+    if not value.is_finite() or value < 0:
+        raise ValueError(f"{name}={raw!r} must be a non-negative USD amount")
+    return value
+
+
+def _env_allowed_pay_to() -> list[str]:
+    raw = os.environ.get("CEREBRUS_ALLOWED_PAYTO", "").strip() or DEFAULT_ALLOWED_PAYTO
+    addresses = [a.strip() for a in raw.split(",") if a.strip()]
+    bad = [a for a in addresses if not _EVM_ADDRESS_RE.match(a)]
+    if bad or not addresses:
+        raise ValueError(f"CEREBRUS_ALLOWED_PAYTO has invalid address(es): {bad or raw!r}")
+    return addresses
+
+
+class SpendGuard:
+    """Client-side limits, checked before any payment is signed.
+
+    Only USDC on Base to an allowlisted payTo is paid, no single payment may
+    exceed ``max_payment_usd``, and the total signed by this process may not
+    exceed ``max_spend_usd``. Every signed payment counts toward the budget,
+    even one the API then rejects: a signed authorization can still settle.
+    """
+
+    def __init__(self, max_payment_usd: Decimal, max_spend_usd: Decimal,
+                 allowed_pay_to: list[str]):
+        self.max_payment_usd = max_payment_usd
+        self.max_spend_usd = max_spend_usd
+        self.allowed_pay_to = frozenset(a.lower() for a in allowed_pay_to)
+        self.spent_usd = Decimal(0)
+        self.last_refusal: str | None = None
+
+    @classmethod
+    def from_env(cls) -> "SpendGuard":
+        """Read the limits from the environment. Raises ValueError if malformed."""
+        return cls(
+            _env_usd("CEREBRUS_MAX_PAYMENT_USD", DEFAULT_MAX_PAYMENT_USD),
+            _env_usd("CEREBRUS_MAX_SPEND_USD", DEFAULT_MAX_SPEND_USD),
+            _env_allowed_pay_to(),
+        )
+
+    def refusal(self, requirement) -> str | None:
+        """Why this offer must not be paid, or None if it is within every limit."""
+        network, asset = str(requirement.network), str(requirement.asset)
+        if network not in _BASE_NETWORKS or asset.lower() != _BASE_USDC:
+            return f"only USDC on Base is auto-paid (offer: asset {asset} on {network})"
+        if str(requirement.pay_to).lower() not in self.allowed_pay_to:
+            return f"payTo {requirement.pay_to} is not in CEREBRUS_ALLOWED_PAYTO"
+        amount = str(requirement.get_amount())
+        if not (amount.isascii() and amount.isdigit()):
+            return f"unreadable amount {amount!r}"
+        price = Decimal(int(amount)) / _USDC_UNIT
+        if price > self.max_payment_usd:
+            return f"price ${price} exceeds CEREBRUS_MAX_PAYMENT_USD (${self.max_payment_usd})"
+        if self.spent_usd + price > self.max_spend_usd:
+            return (
+                f"budget reached: ${self.spent_usd} already signed this session and this "
+                f"call costs ${price}, over CEREBRUS_MAX_SPEND_USD (${self.max_spend_usd})"
+            )
+        return None
+
+    def policy(self, x402_version: int, requirements: list) -> list:
+        """x402 PaymentPolicy: keep only the offers inside every limit."""
+        kept, reasons = [], []
+        for requirement in requirements:
+            reason = self.refusal(requirement)
+            if reason is None:
+                kept.append(requirement)
+            else:
+                reasons.append(reason)
+        if not kept:
+            self.last_refusal = "; ".join(reasons) or "no payable offer"
+        return kept
+
+    def record(self, context) -> None:
+        """x402 after-payment-creation hook: count every signed payment."""
+        amount = int(context.selected_requirements.get_amount())
+        self.spent_usd += Decimal(amount) / _USDC_UNIT
+
+
+def _build_payment_client(key: str, guard: SpendGuard):
+    """An x402 client that signs Base payments with ``key`` inside ``guard``."""
+    from eth_account import Account
+    from x402 import x402ClientSync
+    from x402.mechanisms.evm.exact import register_exact_evm_client
+
+    client = x402ClientSync()
+    # SDK-level backstop for the per-call cap; it also limits payment to the
+    # SDK's recognized stablecoins.
+    client.set_spend_controls({"max_amount_per_payment": f"${guard.max_payment_usd}"})
+    # register_exact_evm_client wraps a raw LocalAccount for us, and
+    # registers BOTH the v2 scheme and the v1 legacy schemes.
+    register_exact_evm_client(
+        client, Account.from_key(key), networks="eip155:8453", policies=[guard.policy]
+    )
+    client.on_after_payment_creation(guard.record)
+    return client
+
+
 _PAYING_SESSION: Any = None
 _PAYMENT_INIT_ERROR: str | None = None
+_SPEND_GUARD: SpendGuard | None = None
 
 
 def _paying_session():
@@ -75,7 +202,7 @@ def _paying_session():
     cannot be imported. Never raises: an unpayable request must still return useful
     payment terms rather than blowing up the tool call.
     """
-    global _PAYING_SESSION, _PAYMENT_INIT_ERROR
+    global _PAYING_SESSION, _PAYMENT_INIT_ERROR, _SPEND_GUARD
     if _PAYING_SESSION is not None or _PAYMENT_INIT_ERROR is not None:
         return _PAYING_SESSION
 
@@ -85,10 +212,15 @@ def _paying_session():
         return None
 
     try:
-        from eth_account import Account
-        from x402 import x402ClientSync
+        guard = SpendGuard.from_env()
+    except ValueError as e:  # fail closed: a typo must not lift a limit
+        _PAYMENT_INIT_ERROR = f"invalid spend limit setting: {e}"
+        return None
+
+    try:
+        import eth_account  # noqa: F401
+        import x402  # noqa: F401
         from x402.http.clients import x402_requests
-        from x402.mechanisms.evm.exact import register_exact_evm_client
     except ImportError as e:
         _PAYMENT_INIT_ERROR = (
             f"payment dependencies missing ({e}). Reinstall with: "
@@ -97,15 +229,27 @@ def _paying_session():
         return None
 
     try:
-        client = x402ClientSync()
-        # register_exact_evm_client wraps a raw LocalAccount for us, and
-        # registers BOTH the v2 scheme and the v1 legacy schemes.
-        register_exact_evm_client(client, Account.from_key(key))
-        _PAYING_SESSION = x402_requests(client)
+        _PAYING_SESSION = x402_requests(_build_payment_client(key, guard))
+        _SPEND_GUARD = guard
         return _PAYING_SESSION
     except Exception as e:  # noqa: BLE001 - degrade to unpaid, never crash
         _PAYMENT_INIT_ERROR = f"payment client init failed: {e}"
         return None
+
+
+def _local_refusal(exc: BaseException) -> str | None:
+    """The reason a payment was refused client-side (nothing signed), else None."""
+    if _SPEND_GUARD is not None and _SPEND_GUARD.last_refusal:
+        return _SPEND_GUARD.last_refusal
+    try:
+        from x402 import NoMatchingRequirementsError
+    except ImportError:
+        return None
+    # The requests adapter wraps SDK errors: PaymentError(...) from <cause>.
+    for err in (exc, exc.__cause__):
+        if isinstance(err, NoMatchingRequirementsError):
+            return str(err)
+    return None
 
 
 def _payment_terms(resp) -> dict[str, Any]:
@@ -138,18 +282,45 @@ def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
     """Make a GET request to the Cerebrus Pulse API, paying if configured."""
     session = _paying_session()
     if session is not None:
+        if _SPEND_GUARD is not None:
+            _SPEND_GUARD.last_refusal = None
         try:
             resp = session.get(f"{BASE_URL}{path}", params=params, timeout=REQUEST_TIMEOUT)
-            if resp.status_code == 200:
-                return resp.json()
-            # Fall through to the unpaid path so the caller still gets terms.
         except Exception as e:  # noqa: BLE001
+            refusal = _local_refusal(e)
+            if refusal is not None:
+                return {
+                    "status": "payment_blocked",
+                    "message": f"Auto-payment blocked by local spend limits: {refusal}",
+                    "url": f"{BASE_URL}{path}",
+                    "help": (
+                        "The refused payment was not signed. Adjust CEREBRUS_MAX_PAYMENT_USD, "
+                        "CEREBRUS_MAX_SPEND_USD or CEREBRUS_ALLOWED_PAYTO if this is expected, "
+                        "or restart the server to reset the session budget."
+                    ),
+                }
             return {
                 "status": "payment_failed",
                 "message": f"x402 payment attempt failed: {e}",
                 "url": f"{BASE_URL}{path}",
-                "help": "Check the wallet has USDC and a little ETH for gas on Base.",
+                "help": "Check the wallet holds enough USDC on Base.",
             }
+        if resp.status_code == 200:
+            return resp.json()
+        if resp.status_code == 402:
+            # The adapter signed and retried, and the API still answered 402.
+            # Report that directly; an unpaid retry would only burn rate limit.
+            return {
+                "status": "payment_rejected",
+                "message": "A signed x402 payment was sent but the API did not accept it.",
+                "url": f"{BASE_URL}{path}",
+                "payment_terms": _payment_terms(resp),
+                "help": (
+                    "Check the wallet holds enough USDC on Base. "
+                    "See https://cerebruspulse.xyz/guides/x402-payments"
+                ),
+            }
+        # Anything else: fall through to the unpaid path for the usual handling.
 
     with _make_client() as client:
         resp = client.get(path, params=params)
@@ -161,9 +332,14 @@ def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
                     "Base wallet to pay automatically. "
                     "See https://cerebruspulse.xyz/guides/x402-payments"
                 )
-            else:
+            elif _PAYMENT_INIT_ERROR:
                 help_text = (
                     f"Auto-payment unavailable: {_PAYMENT_INIT_ERROR}. "
+                    "See https://cerebruspulse.xyz/guides/x402-payments"
+                )
+            else:
+                help_text = (
+                    "Auto-payment is configured but this request was not paid; retry later. "
                     "See https://cerebruspulse.xyz/guides/x402-payments"
                 )
             return {

@@ -75,6 +75,19 @@ would need to settle those payments yourself.
 Use a dedicated hot wallet that holds a few dollars of USDC on Base, never a
 main wallet: the key sits in plain text in the MCP config.
 
+Auto-payment has spend limits, checked before anything is signed:
+
+- no single payment above `CEREBRUS_MAX_PAYMENT_USD` (default `0.10`; the
+  priciest tool costs $0.06);
+- no more than `CEREBRUS_MAX_SPEND_USD` in total while the server process runs
+  (default `1.00`; restart the server to reset it);
+- only USDC on Base, and only to an address in `CEREBRUS_ALLOWED_PAYTO`
+  (default: the published Cerebrus Pulse Base address), so a hijacked or
+  mistyped `CEREBRUS_BASE_URL` cannot redirect payments.
+
+A refused payment returns `"status": "payment_blocked"` with the reason; a
+malformed limit disables auto-payment rather than lifting the limit.
+
 Without a wallet key, paid tools still work as
 discovery: they return the exact price, network, and recipient so the calling
 agent can pay however it likes.
@@ -112,6 +125,9 @@ Arguments can be passed positionally (for coin) or as `key=value` pairs.
 |---------------------|-------------|----------|
 | `CEREBRUS_BASE_URL` | API base URL (default: `https://api.cerebruspulse.xyz`) | No |
 | `CEREBRUS_WALLET_KEY` | Base wallet private key for x402 auto-payment | No |
+| `CEREBRUS_MAX_PAYMENT_USD` | Largest single payment auto-pay may sign (default: `0.10`) | No |
+| `CEREBRUS_MAX_SPEND_USD` | Total auto-pay may sign per server process (default: `1.00`) | No |
+| `CEREBRUS_ALLOWED_PAYTO` | Comma-separated payTo addresses auto-pay may pay (default: the published Cerebrus Pulse Base address) | No |
 | `CEREBRUS_WALLET_KEY_SOLANA` | Reserved; Solana auto-payment not yet implemented | No |
 
 ## Example Response

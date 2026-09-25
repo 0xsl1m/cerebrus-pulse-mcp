@@ -7,12 +7,12 @@
     "url": "https://github.com/0xsl1m/cerebrus-pulse-mcp",
     "source": "github"
   },
-  "version": "0.5.1",
+  "version": "0.5.2",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cerebrus-pulse-mcp",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

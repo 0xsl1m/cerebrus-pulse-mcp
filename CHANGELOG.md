@@ -2,6 +2,47 @@
 
 All notable changes to Cerebrus Pulse MCP Server.
 
+## [0.5.2] - 2026-09-24
+
+### Fixed
+- **Fresh installs crashed on import.** `mcp>=1.0.0` had no upper bound and
+  now resolves to mcp 2.x, which removed the `Server.list_tools()` /
+  `call_tool()` decorators this server uses. Pinned to `mcp>=1.2,<2`.
+- **The documented `uvx cerebrus-pulse-mcp` setup could never pay.** The x402
+  client sat behind the optional `[pay]` extra, which uvx and the MCP registry
+  never install. The payment dependencies are now core; `[pay]` remains as an
+  empty alias so the old install command still works.
+- README prices for pulse, bundle, screener, oi, spread, correlation and
+  stress were stale; the table now matches the API's live
+  `/.well-known/x402` manifest. The bundle row's "20% discount" claim is gone.
+- A signed payment that the API refused fell through to an extra unpaid
+  request and reported "Auto-payment unavailable: None". It now returns
+  `payment_rejected` with the payment terms. The failure hint no longer asks
+  for ETH gas, which x402 payers do not need.
+
+### Added
+- Auto-payment spend limits, checked before anything is signed:
+  `CEREBRUS_MAX_PAYMENT_USD` (default $0.10 per call),
+  `CEREBRUS_MAX_SPEND_USD` (default $1.00 per server process) and
+  `CEREBRUS_ALLOWED_PAYTO` (default: the published Cerebrus Pulse Base
+  address). Only USDC on Base is paid. A refusal returns `payment_blocked`
+  with the reason; a malformed limit disables auto-payment.
+- `server.json` declares its environment variables (the wallet key as an
+  optional secret) and `runtimeHint: uvx`.
+- Tests, and a CI workflow: tests on Python 3.10-3.13, a clean-env install of
+  the built wheel, and a live free-endpoint and price-parity check.
+- `publish.yml`, which releases a pushed `vX.Y.Z` tag through PyPI Trusted
+  Publishing with provenance attestations.
+- `scripts/check_prices.py`, which checks advertised prices against the API's
+  x402 manifest.
+
+### Changed
+- `x402[evm]` floor raised from 2.5 to 2.20, the first release with client
+  spend controls.
+- `scripts/release.py` keeps `server.json` in step with the other version
+  sources, and `publish` now hands off to the tag-triggered workflow
+  (`publish --twine` keeps the old token upload as a fallback).
+
 ## [0.5.1] - 2026-08-28
 
 ### Added

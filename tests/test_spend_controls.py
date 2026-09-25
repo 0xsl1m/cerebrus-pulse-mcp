@@ -7,6 +7,7 @@ fake key and nothing touches the network.
 import json
 from decimal import Decimal
 
+import httpx
 import pytest
 import requests
 from x402 import NoMatchingRequirementsError
@@ -46,9 +47,11 @@ def required(*offers: PaymentRequirements) -> PaymentRequired:
 def clean_state(monkeypatch):
     for name in LIMIT_VARS:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("CEREBRUS_CLI_AUTOPAY", raising=False)
     monkeypatch.setattr(server, "_PAYING_SESSION", None)
     monkeypatch.setattr(server, "_PAYMENT_INIT_ERROR", None)
     monkeypatch.setattr(server, "_SPEND_GUARD", None)
+    monkeypatch.setattr(server, "_CLI_MODE", False)
 
 
 def make_client():
@@ -312,6 +315,56 @@ def test_api_get_reports_server_rejection_with_terms(transport):
     assert result["payment_terms"]["pay_to"] == PAY_TO
     assert "None" not in result["help"]
     assert [c["paid"] for c in calls] == [False, True]
+
+
+# ── The --json CLI: one process, so one fresh budget, per call ─────────────
+
+def _unpaid_client_answering_402(monkeypatch):
+    def handler(request):
+        return httpx.Response(402, json=json.loads(_gateway_402(str(request.url)).content))
+
+    monkeypatch.setattr(server, "_make_client", lambda: httpx.Client(
+        base_url=server.BASE_URL, transport=httpx.MockTransport(handler)))
+
+
+def test_cli_does_not_auto_pay_without_opt_in(transport, monkeypatch, capsys):
+    # A loop of CLI runs would get a fresh CEREBRUS_MAX_SPEND_USD each time,
+    # so the budget could never stop it. Return the terms instead of paying.
+    calls, script = transport
+    script["unpaid"] = script["paid"] = lambda url: pytest.fail("the paying session was used")
+    _unpaid_client_answering_402(monkeypatch)
+
+    assert server._cli_call("pulse", ["BTC"]) == 0
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "payment_required"
+    assert result["payment_terms"]["pay_to"] == PAY_TO
+    assert "CEREBRUS_CLI_AUTOPAY=1" in result["help"]
+    assert calls == []
+    assert server._SPEND_GUARD is None
+
+
+def test_cli_auto_pays_with_opt_in(transport, monkeypatch, capsys):
+    monkeypatch.setenv("CEREBRUS_CLI_AUTOPAY", "1")
+    calls, script = transport
+    script["unpaid"] = _gateway_402
+    script["paid"] = lambda url: _response(200, {"coin": "BTC"}, url)
+
+    assert server._cli_call("pulse", ["BTC"]) == 0
+
+    assert json.loads(capsys.readouterr().out) == {"coin": "BTC"}
+    assert [c["paid"] for c in calls] == [False, True]
+    assert server._SPEND_GUARD.spent_usd == Decimal("0.025")
+
+
+def test_cli_opt_in_does_not_change_the_mcp_server(transport):
+    # CEREBRUS_CLI_AUTOPAY is unset and the server was never in CLI mode.
+    calls, script = transport
+    script["unpaid"] = _gateway_402
+    script["paid"] = lambda url: _response(200, {"coin": "BTC"}, url)
+
+    assert server._api_get("/pulse/BTC") == {"coin": "BTC"}
+    assert server._PAYMENT_INIT_ERROR is None
 
 
 @pytest.mark.parametrize("amount", ["-5", "0.5", "abc", ""])

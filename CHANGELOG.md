@@ -37,6 +37,9 @@ All notable changes to Cerebrus Pulse MCP Server.
   x402 manifest.
 
 ### Changed
+- The `--json` CLI auto-pays only with `CEREBRUS_CLI_AUTOPAY=1`. Each CLI call
+  is a new process, so `CEREBRUS_MAX_SPEND_USD` cannot bound a script that
+  calls it repeatedly; without the opt-in it returns the payment terms.
 - `x402[evm]` floor raised from 2.5 to 2.20, the first release with client
   spend controls.
 - `scripts/release.py` keeps `server.json` in step with the other version

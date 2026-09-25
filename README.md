@@ -84,7 +84,9 @@ Auto-payment has spend limits, checked before anything is signed:
 - no single payment above `CEREBRUS_MAX_PAYMENT_USD` (default `0.10`; the
   priciest tool costs $0.06);
 - no more than `CEREBRUS_MAX_SPEND_USD` in total while the server process runs
-  (default `1.00`; restart the server to reset it);
+  (default `1.00`; restart the server to reset it). The `--json` CLI starts a
+  new process on every call, so this budget cannot span CLI calls, and the CLI
+  does not auto-pay unless you opt in (see [CLI Usage](#cli-usage));
 - only USDC on Base, and only to an address in `CEREBRUS_ALLOWED_PAYTO`
   (default: the published Cerebrus Pulse Base address), so a hijacked or
   mistyped `CEREBRUS_BASE_URL` cannot redirect payments.
@@ -114,7 +116,7 @@ cerebrus-pulse-mcp --json
 cerebrus-pulse-mcp --json health
 cerebrus-pulse-mcp --json list-coins
 
-# Paid endpoints (returns payment details if wallet not configured)
+# Paid endpoints (return the payment terms unless CLI auto-pay is on, below)
 cerebrus-pulse-mcp --json pulse BTC
 cerebrus-pulse-mcp --json funding ETH lookback_hours=48
 cerebrus-pulse-mcp --json screener top_n=10
@@ -123,6 +125,13 @@ cerebrus-pulse-mcp --json liquidations SOL
 
 Arguments can be passed positionally (for coin) or as `key=value` pairs.
 
+The CLI does not auto-pay by default, even with `CEREBRUS_WALLET_KEY` set.
+Every call is a new process with a fresh `CEREBRUS_MAX_SPEND_USD` budget, so
+the budget cannot stop a script that runs the CLI in a loop. Set
+`CEREBRUS_CLI_AUTOPAY=1` to let it pay anyway: each call may then sign one
+payment of up to `CEREBRUS_MAX_PAYMENT_USD`, and limiting how many calls run
+is up to your script.
+
 ## Configuration
 
 | Environment Variable | Description | Required |
@@ -130,7 +139,8 @@ Arguments can be passed positionally (for coin) or as `key=value` pairs.
 | `CEREBRUS_BASE_URL` | API base URL (default: `https://api.cerebruspulse.xyz`) | No |
 | `CEREBRUS_WALLET_KEY` | Base wallet private key for x402 auto-payment | No |
 | `CEREBRUS_MAX_PAYMENT_USD` | Largest single payment auto-pay may sign (default: `0.10`) | No |
-| `CEREBRUS_MAX_SPEND_USD` | Total auto-pay may sign per server process (default: `1.00`) | No |
+| `CEREBRUS_MAX_SPEND_USD` | Total auto-pay may sign per server process (default: `1.00`); does not span `--json` CLI calls | No |
+| `CEREBRUS_CLI_AUTOPAY` | Set to `1` to let the `--json` CLI auto-pay (default: off, because the budget resets on every CLI call) | No |
 | `CEREBRUS_ALLOWED_PAYTO` | Comma-separated payTo addresses auto-pay may pay (default: the published Cerebrus Pulse Base address) | No |
 | `CEREBRUS_WALLET_KEY_SOLANA` | Reserved; Solana auto-payment not yet implemented | No |
 

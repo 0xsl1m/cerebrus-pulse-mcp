@@ -16,6 +16,8 @@ Paid endpoints:
     cap (CEREBRUS_MAX_PAYMENT_USD), a per-process budget
     (CEREBRUS_MAX_SPEND_USD), and a payee allowlist (CEREBRUS_ALLOWED_PAYTO).
     Only USDC on Base is paid.
+  * The --json CLI starts a new process, and so a fresh budget, on every run.
+    It only auto-pays when CEREBRUS_CLI_AUTOPAY=1 says the caller accepts that.
 
 Versions before 0.5.0 advertised automatic payment but never implemented it --
 there was no x402 client dependency at all, and the 402 handler read a header
@@ -196,6 +198,9 @@ def _build_payment_client(key: str, guard: SpendGuard):
 _PAYING_SESSION: Any = None
 _PAYMENT_INIT_ERROR: str | None = None
 _SPEND_GUARD: SpendGuard | None = None
+# Set by the --json CLI. Each CLI run is its own process, so the per-process
+# budget cannot bound spend across runs; the CLI pays only on explicit opt-in.
+_CLI_MODE = False
 
 
 def _paying_session():
@@ -212,6 +217,13 @@ def _paying_session():
     key = os.environ.get("CEREBRUS_WALLET_KEY", "").strip()
     if not key:
         _PAYMENT_INIT_ERROR = "no_wallet_key"
+        return None
+
+    if _CLI_MODE and os.environ.get("CEREBRUS_CLI_AUTOPAY", "").strip() != "1":
+        _PAYMENT_INIT_ERROR = (
+            "the --json CLI does not auto-pay unless CEREBRUS_CLI_AUTOPAY=1, because "
+            "each CLI run starts a new CEREBRUS_MAX_SPEND_USD budget"
+        )
         return None
 
     try:
@@ -766,6 +778,8 @@ _CLI_TOOLS: dict[str, tuple[str, list[tuple[str, bool, type, Any]]]] = {
 
 def _cli_call(tool: str, kv_args: list[str]) -> int:
     """Execute a tool via direct HTTP and print JSON to stdout. Returns exit code."""
+    global _CLI_MODE
+    _CLI_MODE = True
     if tool not in _CLI_TOOLS:
         available = ", ".join(sorted(_CLI_TOOLS))
         print(json.dumps({"error": f"Unknown tool: {tool}", "available": available}),

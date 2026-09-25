@@ -7,9 +7,10 @@ Usage:
     python scripts/release.py bump 0.4.1     # bump all version sources + tag
     python scripts/release.py publish        # build + publish to PyPI (after bump)
 
-Ensures pyproject.toml, __init__.py, CHANGELOG.md, and git tag all agree.
+Ensures pyproject.toml, __init__.py, server.json, CHANGELOG.md, and git tag all agree.
 """
 
+import json
 import re
 import subprocess
 import sys
@@ -19,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = ROOT / "pyproject.toml"
 INIT = ROOT / "src" / "cerebrus_pulse_mcp" / "__init__.py"
 CHANGELOG = ROOT / "CHANGELOG.md"
+SERVER_MANIFEST = ROOT / "server.json"
 
 
 def get_pyproject_version() -> str:
@@ -39,6 +41,13 @@ def get_changelog_version() -> str:
     return m.group(1) if m else "MISSING"
 
 
+def get_server_manifest_versions() -> tuple[str, str]:
+    data = json.loads(SERVER_MANIFEST.read_text(encoding="utf-8"))
+    packages = data.get("packages", [])
+    package_version = packages[0].get("version", "MISSING") if packages else "MISSING"
+    return str(data.get("version", "MISSING")), str(package_version)
+
+
 def get_git_tags() -> list[str]:
     result = subprocess.run(
         ["git", "tag", "-l", "v*"], capture_output=True, text=True, cwd=ROOT
@@ -50,11 +59,14 @@ def check():
     pyp = get_pyproject_version()
     ini = get_init_version()
     chg = get_changelog_version()
+    manifest, package = get_server_manifest_versions()
     tags = get_git_tags()
 
     print(f"  pyproject.toml:  {pyp}")
     print(f"  __init__.py:     {ini}")
     print(f"  CHANGELOG.md:    {chg}")
+    print(f"  server.json:     {manifest}")
+    print(f"  package entry:   {package}")
     print(f"  git tags:        {', '.join(tags) or '(none)'}")
 
     issues = []
@@ -62,6 +74,10 @@ def check():
         issues.append(f"pyproject.toml ({pyp}) != __init__.py ({ini})")
     if pyp != chg:
         issues.append(f"pyproject.toml ({pyp}) != CHANGELOG.md ({chg})")
+    if pyp != manifest or pyp != package:
+        issues.append(
+            f"pyproject.toml ({pyp}) != server.json ({manifest}, package {package})"
+        )
     if f"v{pyp}" not in tags:
         issues.append(f"git tag v{pyp} missing")
 
@@ -89,6 +105,18 @@ def bump(version: str):
     text = re.sub(r'^(__version__\s*=\s*)"[^"]+"', f'\\1"{version}"', text, flags=re.MULTILINE)
     INIT.write_text(text)
     print(f"  __init__.py    -> {version}")
+
+    # MCP Registry manifest
+    manifest = json.loads(SERVER_MANIFEST.read_text(encoding="utf-8"))
+    manifest["version"] = version
+    if not manifest.get("packages"):
+        raise ValueError("server.json has no package entry")
+    manifest["packages"][0]["version"] = version
+    SERVER_MANIFEST.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(f"  server.json    -> {version}")
 
     # Check CHANGELOG has an entry
     chg = get_changelog_version()

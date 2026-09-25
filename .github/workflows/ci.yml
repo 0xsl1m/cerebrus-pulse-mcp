@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so a breaking upstream release (as mcp 2.0 was) is caught even
+    # when nothing in this repo changes.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: python -m pip install -e ".[test]"
+      - name: Byte-compile
+        run: python -m compileall -q src scripts
+      - name: Test
+        run: python -m pytest -q
+
+  package:
+    # Install the built wheel the way uvx and the MCP registry do: a fresh env
+    # with no extras. This is the path that broke in 0.5.1 and never paid in
+    # 0.5.0.
+    name: wheel in a clean env
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install build==1.6.1 twine==7.0.0
+          python -m build
+          python -m twine check dist/*
+      - name: Import, list tools, and build a paying session
+        env:
+          # A syntactically valid, never-funded key: proves auto-pay is
+          # available from the bare install without signing anything.
+          CEREBRUS_WALLET_KEY: "0x1111111111111111111111111111111111111111111111111111111111111111"
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install dist/*.whl
+          /tmp/clean/bin/python -c "import importlib.metadata as m; v = m.version('mcp'); assert v.startswith('1.'), v"
+          /tmp/clean/bin/cerebrus-pulse-mcp --json > /dev/null
+          /tmp/clean/bin/python -c "from cerebrus_pulse_mcp import server as s; assert s._paying_session() is not None, s._PAYMENT_INIT_ERROR"
+      - name: The 0.5.0-0.5.1 install command still resolves
+        run: |
+          python -m venv /tmp/clean-pay
+          /tmp/clean-pay/bin/pip install "$(ls dist/*.whl)[pay]"
+          /tmp/clean-pay/bin/python -c "import cerebrus_pulse_mcp.server"
+
+  live:
+    # Talks to the production API: free endpoints only, never a payment.
+    name: live API smoke + price parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e .
+      - name: Free endpoints answer
+        run: |
+          cerebrus-pulse-mcp --json health
+          cerebrus-pulse-mcp --json list-coins > /dev/null
+      - name: Advertised prices match /.well-known/x402
+        run: python scripts/check_prices.py --live

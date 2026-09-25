@@ -77,3 +77,33 @@ def test_check_flags_a_stale_server_json(release, sandbox, monkeypatch, capsys):
 
     assert release.check() is False
     assert "server.json" in capsys.readouterr().out
+
+
+def test_publish_defaults_to_the_tag_push_not_a_token_upload(release, monkeypatch, capsys):
+    monkeypatch.setattr(release, "check", lambda: True)
+    monkeypatch.setattr(
+        release.subprocess, "run",
+        lambda *a, **k: pytest.fail(f"publish ran a command: {a}"),
+    )
+
+    release.publish()
+
+    out = capsys.readouterr().out
+    assert f"git push origin v{release.get_pyproject_version()}" in out
+    assert "Trusted Publishing" in out
+
+
+def test_publish_twine_is_an_explicit_fallback(release, monkeypatch):
+    monkeypatch.setattr(release, "check", lambda: True)
+    commands = []
+    monkeypatch.setattr(release.subprocess, "run", lambda cmd, **k: commands.append(cmd))
+
+    release.publish(use_twine=True)
+
+    assert any("twine" in cmd for cmd in commands)
+
+
+def test_publish_refuses_inconsistent_versions(release, monkeypatch):
+    monkeypatch.setattr(release, "check", lambda: False)
+    with pytest.raises(SystemExit):
+        release.publish()

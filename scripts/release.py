@@ -5,7 +5,13 @@ Release helper for cerebrus-pulse-mcp.
 Usage:
     python scripts/release.py check          # verify version consistency
     python scripts/release.py bump 0.4.1     # bump all version sources + tag
-    python scripts/release.py publish        # build + publish to PyPI (after bump)
+    python scripts/release.py publish        # check, then print the tag push that publishes
+    python scripts/release.py publish --twine  # legacy: build + upload with a PyPI API token
+
+Publishing normally runs in GitHub Actions (.github/workflows/publish.yml) on a
+pushed v* tag, through PyPI Trusted Publishing: no API token, and the upload
+carries provenance attestations. --twine is the old laptop upload, kept only
+as a fallback until the trusted publisher is configured on PyPI.
 
 Ensures pyproject.toml, __init__.py, server.json, CHANGELOG.md, and git tag all agree.
 """
@@ -127,16 +133,23 @@ def bump(version: str):
     print(f"\nNext steps:")
     print(f"  1. git add -A && git commit -m 'v{version}: <description>'")
     print(f"  2. git tag v{version}")
-    print(f"  3. git push origin main --tags")
-    print(f"  4. python scripts/release.py publish")
+    print(f"  3. python scripts/release.py publish")
 
 
-def publish():
+def publish(use_twine: bool = False):
     v = get_pyproject_version()
     ok = check()
     if not ok:
         print("\nFix version inconsistencies before publishing.")
         sys.exit(1)
+
+    if not use_twine:
+        print(f"\nv{v} is ready. Push the commit and the tag; publish.yml builds it and")
+        print("uploads it to PyPI through Trusted Publishing:")
+        print("  git push origin main")
+        print(f"  git push origin v{v}")
+        print("Then republish server.json to the MCP registry.")
+        return
 
     print(f"\nBuilding v{v}...")
     subprocess.run([sys.executable, "-m", "build"], cwd=ROOT, check=True)
@@ -165,7 +178,7 @@ if __name__ == "__main__":
             sys.exit(1)
         bump(sys.argv[2])
     elif cmd == "publish":
-        publish()
+        publish(use_twine="--twine" in sys.argv[2:])
     else:
         print(f"Unknown command: {cmd}")
         print(__doc__)

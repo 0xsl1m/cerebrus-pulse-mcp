@@ -6,9 +6,10 @@ Supports both free endpoints (health, coins) and paid x402 endpoints
 (pulse, sentiment, funding, bundle).
 
 Paid endpoints:
-  * With CEREBRUS_WALLET_KEY set AND the payment extras installed
-    (pip install "cerebrus-pulse-mcp[pay]"), the 402 flow is settled
-    automatically against Base and the data is returned directly.
+  * With CEREBRUS_WALLET_KEY set, the 402 flow is settled automatically
+    against Base and the data is returned directly. The x402 client is a
+    core dependency since 0.5.2 (it was an optional [pay] extra that the
+    documented uvx setup never installed).
   * Otherwise the tool returns structured payment terms (price, network,
     recipient) parsed from the 402 so the caller can pay itself.
 
@@ -70,8 +71,8 @@ _PAYMENT_INIT_ERROR: str | None = None
 def _paying_session():
     """Build (once) a requests Session that settles x402 payments automatically.
 
-    Returns None when no wallet key is configured or the payment extras are not
-    installed. Never raises: an unpayable request must still return useful
+    Returns None when no wallet key is configured or the payment dependencies
+    cannot be imported. Never raises: an unpayable request must still return useful
     payment terms rather than blowing up the tool call.
     """
     global _PAYING_SESSION, _PAYMENT_INIT_ERROR
@@ -90,8 +91,8 @@ def _paying_session():
         from x402.mechanisms.evm.exact import register_exact_evm_client
     except ImportError as e:
         _PAYMENT_INIT_ERROR = (
-            f"payment extras missing ({e}). Install with: "
-            'pip install "cerebrus-pulse-mcp[pay]"'
+            f"payment dependencies missing ({e}). Reinstall with: "
+            "pip install --force-reinstall cerebrus-pulse-mcp"
         )
         return None
 
@@ -156,9 +157,9 @@ def _api_get(path: str, params: dict | None = None) -> dict[str, Any]:
         if resp.status_code == 402:
             if _PAYMENT_INIT_ERROR == "no_wallet_key":
                 help_text = (
-                    "Set CEREBRUS_WALLET_KEY to a funded Base wallet private key and "
-                    'install the payment extras (pip install "cerebrus-pulse-mcp[pay]") '
-                    "to pay automatically. See https://cerebruspulse.xyz/guides/x402-payments"
+                    "Set CEREBRUS_WALLET_KEY to the private key of a dedicated, low-balance "
+                    "Base wallet to pay automatically. "
+                    "See https://cerebruspulse.xyz/guides/x402-payments"
                 )
             else:
                 help_text = (

@@ -29,16 +29,18 @@ dependencies = [
     # this server registers at import time; stay on the maintained 1.x line.
     "mcp>=1.2,<2",
     "httpx>=0.27.0",
-]
-
-# Optional payment support. Kept optional so the package stays light for
-# callers that only use the free endpoints or settle payments themselves.
-[project.optional-dependencies]
-pay = [
+    # x402 auto-payment. Core, not an extra: uvx and the MCP registry install
+    # the bare package into an isolated env, so an optional extra never
+    # reached the documented setups and paid tools could not pay.
     "x402[evm]>=2.5,<3",
     "eth-account>=0.13",
     "requests>=2.32",
 ]
+
+[project.optional-dependencies]
+# Kept as an empty alias so `pip install "cerebrus-pulse-mcp[pay]"` (documented
+# for 0.5.0-0.5.1) keeps resolving; the payment deps are core since 0.5.2.
+pay = []
 test = [
     "pytest>=8",
 ]

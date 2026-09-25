@@ -49,14 +49,9 @@ Add to your MCP config (`claude_desktop_config.json`, `.cursor/mcp.json`, etc.):
 }
 ```
 
-To enable automatic x402 payments for paid endpoints, install the payment
-extra and add your wallet key:
-
-```bash
-pip install "cerebrus-pulse-mcp[pay]"
-```
-
-Then:
+To enable automatic x402 payments for paid endpoints, add a wallet key. The
+x402 client ships with the package, so the same `uvx` command pays; there is no
+extra to install:
 
 ```json
 {
@@ -77,7 +72,10 @@ Automatic payment currently covers **Base** only. `CEREBRUS_WALLET_KEY_SOLANA`
 is reserved for a future Solana signer — the API accepts Solana today, but you
 would need to settle those payments yourself.
 
-Without a wallet key (or without the `[pay]` extra) paid tools still work as
+Use a dedicated hot wallet that holds a few dollars of USDC on Base, never a
+main wallet: the key sits in plain text in the MCP config.
+
+Without a wallet key, paid tools still work as
 discovery: they return the exact price, network, and recipient so the calling
 agent can pay however it likes.
 
@@ -113,7 +111,7 @@ Arguments can be passed positionally (for coin) or as `key=value` pairs.
 | Environment Variable | Description | Required |
 |---------------------|-------------|----------|
 | `CEREBRUS_BASE_URL` | API base URL (default: `https://api.cerebruspulse.xyz`) | No |
-| `CEREBRUS_WALLET_KEY` | Base wallet private key for x402 auto-payment (requires the `[pay]` extra) | No |
+| `CEREBRUS_WALLET_KEY` | Base wallet private key for x402 auto-payment | No |
 | `CEREBRUS_WALLET_KEY_SOLANA` | Reserved; Solana auto-payment not yet implemented | No |
 
 ## Example Response

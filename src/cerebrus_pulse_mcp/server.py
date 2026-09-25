@@ -92,7 +92,8 @@ def _env_usd(name: str, default: str) -> Decimal:
         value = Decimal(raw.lstrip("$"))
     except InvalidOperation:
         raise ValueError(f"{name}={raw!r} is not a USD amount") from None
-    if not value.is_finite() or value < 0:
+    # is_signed() also rejects "-0", which the x402 SDK cannot parse.
+    if not value.is_finite() or value.is_signed():
         raise ValueError(f"{name}={raw!r} must be a non-negative USD amount")
     return value
 
@@ -144,11 +145,11 @@ class SpendGuard:
             return f"unreadable amount {amount!r}"
         price = Decimal(int(amount)) / _USDC_UNIT
         if price > self.max_payment_usd:
-            return f"price ${price} exceeds CEREBRUS_MAX_PAYMENT_USD (${self.max_payment_usd})"
+            return f"price ${price} exceeds CEREBRUS_MAX_PAYMENT_USD (${self.max_payment_usd:f})"
         if self.spent_usd + price > self.max_spend_usd:
             return (
                 f"budget reached: ${self.spent_usd} already signed this session and this "
-                f"call costs ${price}, over CEREBRUS_MAX_SPEND_USD (${self.max_spend_usd})"
+                f"call costs ${price}, over CEREBRUS_MAX_SPEND_USD (${self.max_spend_usd:f})"
             )
         return None
 
@@ -179,8 +180,10 @@ def _build_payment_client(key: str, guard: SpendGuard):
 
     client = x402ClientSync()
     # SDK-level backstop for the per-call cap; it also limits payment to the
-    # SDK's recognized stablecoins.
-    client.set_spend_controls({"max_amount_per_payment": f"${guard.max_payment_usd}"})
+    # SDK's recognized stablecoins. The SDK parses this string only when it
+    # pays and rejects exponent notation, which str() gives a Decimal read from
+    # "1e1" or "0.0000001"; the :f format always writes plain digits.
+    client.set_spend_controls({"max_amount_per_payment": f"${guard.max_payment_usd:f}"})
     # register_exact_evm_client wraps a raw LocalAccount for us, and
     # registers BOTH the v2 scheme and the v1 legacy schemes.
     register_exact_evm_client(

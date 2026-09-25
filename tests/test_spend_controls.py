@@ -168,6 +168,7 @@ def test_only_usdc_on_base_is_paid():
     ("CEREBRUS_MAX_PAYMENT_USD", "ten cents"),
     ("CEREBRUS_MAX_SPEND_USD", "-1"),
     ("CEREBRUS_MAX_SPEND_USD", "NaN"),
+    ("CEREBRUS_MAX_PAYMENT_USD", "-0"),
     ("CEREBRUS_ALLOWED_PAYTO", "0x1234"),
 ])
 def test_malformed_limit_disables_auto_payment(monkeypatch, name, value):
@@ -176,6 +177,35 @@ def test_malformed_limit_disables_auto_payment(monkeypatch, name, value):
     assert server._paying_session() is None
     assert server._PAYMENT_INIT_ERROR.startswith("invalid spend limit setting")
     assert name in server._PAYMENT_INIT_ERROR
+
+
+# ── Limits written in exponent notation ─────────────────────────────────────
+# str(Decimal("1e1")) is "1E+1". x402 rejects exponent notation in the cap and
+# parses it only when it pays, so every paid call used to fail as
+# "payment_failed" with a wallet-balance hint instead of paying or refusing.
+
+def test_exponent_notation_cap_reaches_the_sdk_as_plain_digits(monkeypatch):
+    monkeypatch.setenv("CEREBRUS_MAX_PAYMENT_USD", "1e1")
+    monkeypatch.setenv("CEREBRUS_MAX_SPEND_USD", "5")
+    guard, client = make_client()
+    # Above the SDK's own $1 default, so the SDK really read our $10 cap.
+    client.create_payment_payload(required(offer("1.50")))
+    assert guard.spent_usd == Decimal("1.50")
+
+
+def test_tiny_exponent_notation_cap_refuses_instead_of_erroring(monkeypatch):
+    monkeypatch.setenv("CEREBRUS_MAX_PAYMENT_USD", "0.0000001")
+    guard, client = make_client()
+    with pytest.raises(NoMatchingRequirementsError):
+        client.create_payment_payload(required(offer("0.01")))
+    assert guard.spent_usd == 0
+
+
+def test_refusal_messages_show_limits_in_plain_notation():
+    guard = server.SpendGuard(Decimal("1E-2"), Decimal("1E+1"), [PAY_TO])
+    assert "($0.01)" in guard.refusal(offer("0.02"))
+    guard.spent_usd = Decimal("10")
+    assert "($10)" in guard.refusal(offer("0.01"))
 
 
 # ── End to end through _api_get, HTTP mocked at the transport ───────────────
@@ -232,6 +262,16 @@ def test_api_get_pays_and_counts_spend(transport):
     assert server._api_get("/pulse/BTC") == {"coin": "BTC"}
     assert [c["paid"] for c in calls] == [False, True]
     assert server._SPEND_GUARD.spent_usd == Decimal("0.025")
+
+
+def test_api_get_pays_with_an_exponent_notation_cap(transport, monkeypatch):
+    monkeypatch.setenv("CEREBRUS_MAX_PAYMENT_USD", "1e1")
+    calls, script = transport
+    script["unpaid"] = _gateway_402
+    script["paid"] = lambda url: _response(200, {"coin": "BTC"}, url)
+
+    assert server._api_get("/pulse/BTC") == {"coin": "BTC"}
+    assert [c["paid"] for c in calls] == [False, True]
 
 
 def test_api_get_reports_blocked_payment_without_unpaid_retry(transport, monkeypatch):

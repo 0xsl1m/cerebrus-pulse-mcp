@@ -25,7 +25,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "mcp>=1.0.0",
+    # mcp 2.x removed the lowlevel Server.list_tools()/call_tool() decorators
+    # this server registers at import time; stay on the maintained 1.x line.
+    "mcp>=1.2,<2",
     "httpx>=0.27.0",
 ]
 
@@ -36,6 +38,9 @@ pay = [
     "x402[evm]>=2.5,<3",
     "eth-account>=0.13",
     "requests>=2.32",
+]
+test = [
+    "pytest>=8",
 ]
 
 [project.urls]

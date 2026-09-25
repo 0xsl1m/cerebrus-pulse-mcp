@@ -22,3 +22,6 @@ mcp-publisher.tar.gz
 
 # MCP Registry auth tokens
 .mcpregistry_*
+
+# Test cache
+.pytest_cache/

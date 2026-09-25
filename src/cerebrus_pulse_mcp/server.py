@@ -78,7 +78,7 @@ def _validate_coin(coin: str) -> str:
 # updated whenever the gateway's payTo address is rotated:
 # scripts/check_payto.py --live (CI, release workflow) fails while the two
 # differ, and scripts/release.py check refuses an address in RETIRED_PAYTO.
-DEFAULT_ALLOWED_PAYTO = "0xfDFB12764c76B5113153acaa2317081F4Abc2a88"
+DEFAULT_ALLOWED_PAYTO = "0x62b2c8ec710FD40A0139e22605D472e3767fd8f6"
 # The most expensive endpoint costs $0.06 (screener).
 DEFAULT_MAX_PAYMENT_USD = "0.10"
 # Total auto-pay may sign during one server process.

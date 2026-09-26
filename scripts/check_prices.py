@@ -42,6 +42,9 @@ def manifest_prices(manifest: dict) -> dict[str, Decimal]:
     prices = {}
     for endpoint in manifest.get("endpoints", []):
         path = re.sub(r"^https?://[^/]+", "", endpoint["url"])
+        # Gateway 1.4.0 names path params ("/pulse/{coin}", F064); older
+        # manifests used "/pulse/*". Normalise both to the "*" form.
+        path = re.sub(r"\{[^}]+\}", "*", path)
         prices[path] = Decimal(str(endpoint["price"]["amount"]))
     return prices
 

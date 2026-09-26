@@ -61,3 +61,12 @@ def test_a_new_manifest_endpoint_without_a_tool_is_reported(check_prices):
         "description": "", "price": {"amount": 0.01, "currency": "USD", "asset": "USDC"},
     })
     assert any("/new-thing" in p for p in check_prices.check(manifest))
+
+
+def test_named_path_params_match_like_wildcards(check_prices):
+    # Gateway 1.4.0 publishes "/pulse/{coin}" (F064) where 1.3.0 published
+    # "/pulse/*". Both forms must check identically.
+    manifest = copy.deepcopy(MANIFEST)
+    for endpoint in manifest["endpoints"]:
+        endpoint["url"] = endpoint["url"].replace("/*", "/{coin}")
+    assert check_prices.check(manifest) == check_prices.check(MANIFEST)
